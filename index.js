@@ -35,7 +35,7 @@ client.lockedChannels = new Map();
 
 // Load commands
 function loadCommands() {
-  const commandFolders = ['moderation', 'config', 'info'];
+  const commandFolders = ['moderation', 'config', 'info', 'economy', 'tickets', 'welcome', 'verification', 'suggestions', 'giveaway', 'starboard', 'fun'];
   
   for (const folder of commandFolders) {
     const commandPath = path.join(__dirname, 'commands', folder);
@@ -43,9 +43,13 @@ function loadCommands() {
     
     const files = fs.readdirSync(commandPath).filter(file => file.endsWith('.js'));
     for (const file of files) {
-      const command = require(path.join(commandPath, file));
-      client.commands.set(command.data.name, command);
-      console.log(`[Command] Loaded: ${command.data.name}`);
+      try {
+        const command = require(path.join(commandPath, file));
+        client.commands.set(command.data.name, command);
+        console.log(`[Command] Loaded: ${command.data.name}`);
+      } catch (error) {
+        console.log(`[Command] Error loading ${file}: ${error.message}`);
+      }
     }
   }
 }
@@ -55,15 +59,19 @@ function loadEvents() {
   const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
   
   for (const file of eventFiles) {
-    const event = require(`./events/${file}`);
-    const eventName = file.replace('.js', '');
-    
-    if (event.once) {
-      client.once(eventName, (...args) => event.execute(...args, client));
-    } else {
-      client.on(eventName, (...args) => event.execute(...args, client));
+    try {
+      const event = require(`./events/${file}`);
+      const eventName = file.replace('.js', '');
+      
+      if (event.once) {
+        client.once(eventName, (...args) => event.execute(...args, client));
+      } else {
+        client.on(eventName, (...args) => event.execute(...args, client));
+      }
+      console.log(`[Event] Loaded: ${eventName}`);
+    } catch (error) {
+      console.log(`[Event] Error loading ${file}: ${error.message}`);
     }
-    console.log(`[Event] Loaded: ${eventName}`);
   }
 }
 
