@@ -1,6 +1,9 @@
-const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+/**
+ * Help Command - Interactive help menu
+ */
 
-// Help command - show help menu
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('help')
@@ -8,94 +11,151 @@ module.exports = {
     .addStringOption(option =>
       option.setName('category')
         .setDescription('Category to show help for')
-        .setRequired(false)
         .addChoices(
           { name: 'Moderation', value: 'moderation' },
           { name: 'Economy', value: 'economy' },
+          { name: 'Music', value: 'music' },
           { name: 'Tickets', value: 'tickets' },
-          { name: 'Info', value: 'info' }
-        )),
-  permissions: [],
+          { name: 'Utility', value: 'utility' },
+          { name: 'Game', value: 'game' }
+        )
+    ),
+  
   async execute(interaction, client) {
     const category = interaction.options.getString('category');
-    const guildId = interaction.guild?.id;
     
     const categories = {
       moderation: {
-        title: '🔨 Moderation Commands',
+        title: '🛡️ Moderation Commands',
         commands: [
-          '/ban - Ban a user',
-          '/unban - Unban a user',
-          '/kick - Kick a user',
-          '/mute - Mute a user',
-          '/unmute - Unmute a user',
-          '/warn - Warn a user',
-          '/warnings - View warnings',
-          '/clearwarns - Clear warnings',
-          '/lock - Lock channel',
-          '/unlock - Unlock channel',
-          '/slowmode - Set slowmode',
-          '/purge - Delete messages',
-          '/role - Add/remove role',
-          '/voicemute - Voice mute',
-          '/deafen - Deafen user',
-          '/disconnect - Disconnect from voice',
-          '/lockdown - Lock all channels',
-          '/unraid - Unlock all channels'
+          { name: '/ban', desc: 'Ban a user' },
+          { name: '/unban', desc: 'Unban a user' },
+          { name: '/kick', desc: 'Kick a user' },
+          { name: '/mute', desc: 'Mute a user' },
+          { name: '/unmute', desc: 'Unmute a user' },
+          { name: '/warn', desc: 'Warn a user' },
+          { name: '/warnings', desc: 'View warnings' },
+          { name: '/clearwarns', desc: 'Clear warnings' },
+          { name: '/lock', desc: 'Lock a channel' },
+          { name: '/unlock', desc: 'Unlock a channel' },
+          { name: '/slowmode', desc: 'Set slowmode' },
+          { name: '/purge', desc: 'Delete messages' },
+          { name: '/role', desc: 'Add/remove role' }
         ]
       },
       economy: {
         title: '💰 Economy Commands',
         commands: [
-          '/daily - Claim daily reward',
-          '/balance - Check balance',
-          '/pay - Pay coins',
-          '/leaderboard - View leaderboard',
-          '/rank - View rank card'
+          { name: '/balance', desc: 'Check your balance' },
+          { name: '/daily', desc: 'Claim daily rewards' },
+          { name: '/weekly', desc: 'Claim weekly rewards' },
+          { name: '/beg', desc: 'Beg for coins' },
+          { name: '/gamble', desc: 'Gamble coins' },
+          { name: '/rob', desc: 'Rob another user' },
+          { name: '/pay', desc: 'Pay another user' },
+          { name: '/rank', desc: 'Check your rank/XP' },
+          { name: '/leaderboard', desc: 'Server leaderboard' }
+        ]
+      },
+      music: {
+        title: '🎵 Music Commands',
+        commands: [
+          { name: '/play', desc: 'Play music' },
+          { name: '/stop', desc: 'Stop music' },
+          { name: '/skip', desc: 'Skip song' },
+          { name: '/queue', desc: 'View queue' },
+          { name: '/volume', desc: 'Set volume' }
         ]
       },
       tickets: {
         title: '🎫 Ticket Commands',
         commands: [
-          '/ticket - Create ticket',
-          '/ticketpanel - Create ticket panel'
+          { name: '/ticket-create', desc: 'Create a ticket' },
+          { name: '/ticket-close', desc: 'Close ticket' },
+          { name: '/ticket-add', desc: 'Add user to ticket' },
+          { name: '/ticket-remove', desc: 'Remove user from ticket' },
+          { name: '/ticket-panel', desc: 'Create ticket panel' }
         ]
       },
-      info: {
-        title: 'ℹ️ Info Commands',
+      utility: {
+        title: '🔧 Utility Commands',
         commands: [
-          '/ping - Check bot latency',
-          '/serverstats - Server statistics',
-          '/serverinfo - Server info',
-          '/userinfo - User info',
-          '/invite - Get invite link',
-          '/help - Show this help'
+          { name: '/server-info', desc: 'Server information' },
+          { name: '/user-info', desc: 'User information' },
+          { name: '/avatar', desc: 'User avatar' },
+          { name: '/banner', desc: 'User banner' },
+          { name: '/role-info', desc: 'Role information' },
+          { name: '/channel-info', desc: 'Channel information' },
+          { name: '/emojis', desc: 'Server emojis' },
+          { name: '/poll', desc: 'Create poll' },
+          { name: '/ping', desc: 'Check ping' },
+          { name: '/bot-stats', desc: 'Bot statistics' }
+        ]
+      },
+      game: {
+        title: '🎮 Game Commands',
+        commands: [
+          { name: '/8ball', desc: 'Ask the magic 8ball' },
+          { name: '/rps', desc: 'Rock Paper Scissors' }
         ]
       }
     };
     
-    if (category) {
+    const embed = new EmbedBuilder()
+      .setColor(0x0099ff);
+    
+    if (category && categories[category]) {
       const cat = categories[category];
-      const embed = new EmbedBuilder()
-        .setTitle(cat.title)
-        .setColor(0x00ff00)
-        .setDescription(cat.commands.join('\n'));
+      embed.setTitle(cat.title);
       
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      let desc = '';
+      for (const cmd of cat.commands) {
+        desc += `**${cmd.name}** - ${cmd.desc}\n`;
+      }
+      embed.setDescription(desc);
     } else {
-      // Show all categories
-      const embed = new EmbedBuilder()
-        .setTitle('🤖 Bot Help')
-        .setColor(0x00ff00)
-        .setDescription('Available command categories:')
-        .addFields(
-          { name: '🔨 Moderation', value: '`/help moderation`', inline: true },
-          { name: '💰 Economy', value: '`/help economy`', inline: true },
-          { name: '🎫 Tickets', value: '`/help tickets`', inline: true },
-          { name: 'ℹ️ Info', value: '`/help info`', inline: true }
-        ));
+      embed.setTitle('🤖 Bot Help')
+        .setDescription('Select a category above or use the buttons below:');
+    }
+    
+    // Create navigation buttons
+    const row = new ActionRowBuilder();
+    
+    if (!category) {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId('help-moderation')
+          .setLabel('🛡️ Mod')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('help-economy')
+          .setLabel('💰 Economy')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('help-music')
+          .setLabel('🎵 Music')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('help-utility')
+          .setLabel('🔧 Utility')
+          .setStyle(ButtonStyle.Secondary)
+      );
       
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      const row2 = new ActionRowBuilder();
+      row2.addComponents(
+        new ButtonBuilder()
+          .setCustomId('help-tickets')
+          .setLabel('🎫 Tickets')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('help-game')
+          .setLabel('🎮 Games')
+          .setStyle(ButtonStyle.Secondary)
+      );
+      
+      await interaction.reply({ embeds: [embed], components: [row, row2] });
+    } else {
+      await interaction.reply({ embeds: [embed] });
     }
   }
 };

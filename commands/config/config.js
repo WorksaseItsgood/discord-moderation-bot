@@ -1,88 +1,65 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+/**
+ * Config Command - Configure bot settings
+ */
 
-// Config command - view current configuration
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('config')
-    .setDescription('View bot configuration')
+    .setDescription('Configure bot settings')
     .addStringOption(option =>
-      option.setName('section')
-        .setDescription('Config section to view')
-        .setRequired(false)
+      option.setName('setting')
+        .setDescription('Setting to configure')
+        .setRequired(true)
         .addChoices(
-          { name: 'Anti-Raid', value: 'raid' },
-          { name: 'Auto-Moderation', value: 'automod' },
-          { name: 'Logging', value: 'logging' },
-          { name: 'Moderation', value: 'moderation' }
-        )),
-  permissions: [PermissionFlagsBits.Administrator],
+          { name: 'Welcome Channel', value: 'welcome_channel' },
+          { name: 'Leave Channel', value: 'leave_channel' },
+          { name: 'Welcome Message', value: 'welcome_message' },
+          { name: 'Leave Message', value: 'leave_message' },
+          { name: 'Auto Role', value: 'auto_role' },
+          { name: 'Ticket Category', value: 'ticket_category' },
+          { name: 'Ticket Log Channel', value: 'ticket_log_channel' },
+          { name: 'Suggestion Channel', value: 'suggestion_channel' },
+          { name: 'Verification Role', value: 'verify_role' },
+          { name: 'Log Channel', value: 'log_channel' },
+          { name: 'Mute Role', value: 'mute_role' },
+          { name: 'Anti-Raid Enable', value: 'antiraid_enable' },
+          { name: 'Auto-Mod Enable', value: 'automod_enable' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('value')
+        .setDescription('Setting value (channel ID, role ID, message, or on/off)')
+    ),
+  
   async execute(interaction, client) {
-    const section = interaction.options.getString('section') || 'all';
-    const config = require('../config').defaultConfig;
+    const setting = interaction.options.getString('setting');
+    const value = interaction.options.getString('value');
+    const guildId = interaction.guildId;
+    
+    // Check permissions
+    if (!interaction.member.permissions.has('ManageGuild')) {
+      return interaction.reply({ content: 'You need ManageGuild permission!', ephemeral: true });
+    }
+    
+    if (!value) {
+      // Get current value
+      const currentValue = client.dbManager.getSetting(setting, guildId);
+      return interaction.reply({ 
+        content: `**${setting}**: ${currentValue || 'Not set'}`,
+        ephemeral: true 
+      });
+    }
+    
+    // Set value
+    client.dbManager.setSetting(setting, guildId, value);
     
     const embed = new EmbedBuilder()
-      .setTitle('⚙️ Bot Configuration')
-      .setColor(0x00ff00)
-      .setTimestamp();
+      .setTitle('✅ Configuration Updated')
+      .setDescription(`**${setting}** has been set to **${value}**`)
+      .setColor(0x00ff00);
     
-    if (section === 'all' || section === 'raid') {
-      const raid = config.raid || {};
-      embed.addFields({
-        name: '🛡️ Anti-Raid',
-        value: [
-          `Enabled: ${raid.enabled ? '✅' : '❌'}`,
-          `Max Joins/Sec: ${raid.maxJoinsPerSecond}`,
-          `Min Account Age: ${raid.minAccountAge} days`,
-          `Require Avatar: ${raid.requireAvatar ? '✅' : '❌'}`,
-          `Log Channel: ${raid.logChannel ? `<#${raid.logChannel}>` : 'Not set'}`
-        ].join('\n'),
-        inline: true
-      });
-    }
-    
-    if (section === 'all' || section === 'automod') {
-      const autoMod = config.autoMod || {};
-      embed.addFields({
-        name: '🤖 Auto-Moderation',
-        value: [
-          `Enabled: ${autoMod.enabled ? '✅' : '❌'}`,
-          `Anti-Spam: ${autoMod.spam?.enabled ? '✅' : '❌'}`,
-          `Anti-Invite: ${autoMod.antiInvite?.enabled ? '✅' : '❌'}`,
-          `Anti-Scam: ${autoMod.antiScam?.enabled ? '✅' : '❌'}`,
-          `Anti-Swear: ${autoMod.antiSwear?.enabled ? '✅' : '❌'}`
-        ].join('\n'),
-        inline: true
-      });
-    }
-    
-    if (section === 'all' || section === 'logging') {
-      const logging = config.logging || {};
-      embed.addFields({
-        name: '📝 Logging',
-        value: [
-          `Enabled: ${logging.enabled ? '✅' : '❌'}`,
-          `Mod Logs: ${logging.moderation ? `<#${logging.moderation}>` : 'Not set'}`,
-          `Message Logs: ${logging.messages ? `<#${logging.messages}>` : 'Not set'}`,
-          `Member Logs: ${logging.members ? `<#${logging.members}>` : 'Not set'}`,
-          `Voice Logs: ${logging.voice ? `<#${logging.voice}>` : 'Not set'}`
-        ].join('\n'),
-        inline: true
-      });
-    }
-    
-    if (section === 'all' || section === 'moderation') {
-      const moderation = config.moderation || {};
-      embed.addFields({
-        name: '🔨 Moderation',
-        value: [
-          `Mute Role: ${moderation.muteRole ? `<@&${moderation.muteRole}>` : 'Not set'}`,
-          `DM on Action: ${moderation.dmOnAction ? '✅' : '❌'}`,
-          `Default Warn Expiry: ${moderation.warnExpiryDays} days`
-        ].join('\n'),
-        inline: true
-      });
-    }
-    
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed] });
   }
 };

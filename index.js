@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ModalBuilder, TextInputStyle, TextInputBuilder, ActionRowBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -137,6 +137,14 @@ function loadSystems() {
     console.log('[System] Error loading welcome:', e.message);
   }
   
+  // Initialize starboard system
+  try {
+    require('./systems/starboard')(client);
+    console.log('[System] Loaded: starboard');
+  } catch (e) {
+    console.log('[System] Error loading starboard:', e.message);
+  }
+  
   // Initialize music system (optional - requires distube)
   try {
     require('./systems/music')(client);
@@ -146,33 +154,37 @@ function loadSystems() {
   }
 }
 
-// Login to Discord
-client.once('ready', async () => {
-  console.log(`[Bot] Logged in as ${client.user.tag}`);
-  console.log(`[Bot] Serving ${client.guilds.cache.size} servers`);
-  
-  // Load commands, events, and systems
-  loadCommands();
-  loadEvents();
-  loadSystems();
-  
-  // Register slash commands globally (optional - can be per-guild)
-  if (config.registerCommandsGlobally) {
-    try {
-      await client.application.commands.set(Array.from(client.commands.values()).map(cmd => cmd.data));
-      console.log('[Bot] Slash commands registered globally');
-    } catch (error) {
-      console.error('[Bot] Failed to register global commands:', error);
+// Handle interactions - unified handler
+async function handleInteraction(interaction) {
+  // Handle modal submissions
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'verify-modal') {
+      const code = interaction.fields.getTextInputValue('code');
+      const storedCode = client.pendingVerification.get(interaction.user.id);
+      
+      if (code && code.toUpperCase() === storedCode?.toUpperCase()) {
+        // Correct! Verify user
+        client.dbManager.verifyCode(interaction.user.id, interaction.guildId, code);
+        
+        const verifyRole = client.dbManager.getSetting('verify_role', interaction.guildId);
+        if (verifyRole) {
+          const role = interaction.guild.roles.cache.get(verifyRole);
+          if (role) {
+            await interaction.member.roles.add(role);
+          }
+        }
+        
+        await interaction.reply({ content: '✅ Verification complete! You are now verified.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: '❌ Wrong code! Use /verify to try again.', ephemeral: true });
+      }
+      
+      client.pendingVerification.delete(interaction.user.id);
+      return;
     }
   }
   
-  // Set bot status
-  client.user.setActivity(config.status || ' moderation help');
-});
-
-// Handle button interactions
-client.on('interactionCreate', async (interaction) => {
-  // Handle buttons
+  // Handle button interactions
   if (interaction.isButton()) {
     // Ticket close button
     if (interaction.customId === 'ticket-close') {
@@ -181,8 +193,10 @@ client.on('interactionCreate', async (interaction) => {
         if (ticket) {
           client.dbManager.closeTicket(interaction.channel.id, interaction.guildId);
           await interaction.reply('🔒 Ticket closing...');
-          setTimeout(() => {
-            interaction.channel.delete();
+          setTimeout(async () => {
+            try {
+              await interaction.channel.delete();
+            } catch (e) {}
           }, 3000);
         }
       } catch (e) {
@@ -196,6 +210,7 @@ client.on('interactionCreate', async (interaction) => {
       const poll = client.pollData.get(interaction.message.id);
       if (poll) {
         const index = parseInt(interaction.customId.split('-')[1]);
+        
         // Check if already voted
         if (poll.voters.has(interaction.user.id)) {
           await interaction.reply({ content: 'You already voted!', ephemeral: true });
@@ -210,36 +225,43 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
     
-    // Verify button
+    // Verify submit button - show modal
     if (interaction.customId === 'verify-submit') {
-      return; // Handled by modal
+      const modal = new ModalBuilder()
+        .setCustomId('verify-modal')
+        .setTitle('🔐 Verification');
+      
+      const codeInput = new TextInputBuilder()
+        .setCustomId('code')
+        .setLabel('Enter verification code')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Enter the code from /verify')
+        .setMinLength(6)
+        .setMaxLength(6)
+        .setRequired(true);
+      
+      const row = new ActionRowBuilder().addComponents(codeInput);
+      modal.addComponents(row);
+      
+      await interaction.showModal(modal);
+      return;
     }
-  }
-  
-  // Handle modals
-  if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'verify-modal') {
-      const code = interaction.fields.getTextInputValue('code');
-      const storedCode = client.pendingVerification.get(interaction.user.id);
-      
-      if (code.toUpperCase() === storedCode?.toUpperCase()) {
-        // Correct!
-        client.dbManager.verifyCode(interaction.user.id, interaction.guildId, code);
-        
-        const verifyRole = client.dbManager.getSetting('verify_role', interaction.guildId);
-        if (verifyRole) {
-          const role = interaction.guild.roles.cache.get(verifyRole);
-          if (role) {
-            await interaction.member.roles.add(role);
-          }
-        }
-        
-        await interaction.reply({ content: '✅ Verification complete!', ephemeral: true });
-      } else {
-        await interaction.reply({ content: '❌ Wrong code! Try /verify again.', ephemeral: true });
-      }
-      
-      client.pendingVerification.delete(interaction.user.id);
+    
+    // Handle help buttons
+    if (interaction.customId.startsWith('help-')) {
+      const category = interaction.customId.replace('help-', '');
+      await executeHelpCategory(interaction, category);
+      return;
+    }
+    
+    // Ticket category buttons
+    if (interaction.customId.startsWith('ticket-')) {
+      // Category is selected - store and prompt for reason (simplified)
+      const category = interaction.customId.replace('ticket-', '');
+      await interaction.reply({ 
+        content: `Category: ${category}. Please use \`/ticket-create category:${category} reason:your-issue\` to create ticket.`, 
+        ephemeral: true 
+      });
       return;
     }
   }
@@ -278,19 +300,75 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply({ content: errorMsg, ephemeral: true });
     }
   }
+}
+
+// Execute help for category
+async function executeHelpCategory(interaction, category) {
+  const categories = {
+    moderation: {
+      title: '🛡️ Moderation Commands',
+      commands: '/ban, /unban, /kick, /mute, /unmute, /warn, /warnings, /clearwarns, /lock, /unlock, /slowmode, /purge, /role'
+    },
+    economy: {
+      title: '💰 Economy Commands',
+      commands: '/balance, /daily, /weekly, /beg, /gamble, /rob, /pay, /rank, /leaderboard'
+    },
+    music: {
+      title: '🎵 Music Commands',
+      commands: '/play, /stop, /skip, /queue, /volume'
+    },
+    tickets: {
+      title: '🎫 Ticket Commands',
+      commands: '/ticket-create, /ticket-close, /ticket-add, /ticket-remove, /ticket-panel'
+    },
+    utility: {
+      title: '🔧 Utility Commands',
+      commands: '/server-info, /user-info, /avatar, /banner, /role-info, /channel-info, /emojis, /poll, /ping, /bot-stats'
+    },
+    game: {
+      title: '🎮 Game Commands',
+      commands: '/8ball, /rps'
+    }
+  };
+  
+  const cat = categories[category];
+  if (!cat) return;
+  
+  const { EmbedBuilder } = require('discord.js');
+  const embed = new EmbedBuilder()
+    .setTitle(cat.title)
+    .setDescription(cat.commands)
+    .setColor(0x0099ff);
+  
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+// Login to Discord
+client.once('ready', async () => {
+  console.log(`[Bot] Logged in as ${client.user.tag}`);
+  console.log(`[Bot] Serving ${client.guilds.cache.size} servers`);
+  
+  // Load commands, events, and systems
+  loadCommands();
+  loadEvents();
+  loadSystems();
+  
+  // Register slash commands globally (optional - can be per-guild)
+  if (config.registerCommandsGlobally) {
+    try {
+      await client.application.commands.set(Array.from(client.commands.values()).map(cmd => cmd.data));
+      console.log('[Bot] Slash commands registered globally');
+    } catch (error) {
+      console.error('[Bot] Failed to register global commands:', error);
+    }
+  }
+  
+  // Set bot status
+  client.user.setActivity(config.status || ' moderation help');
 });
 
-// Handle select menus
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isSelectMenu()) return;
-  
-  // Handle ticket category selection
-  if (interaction.customId === 'ticket-category') {
-    const category = interaction.values[0];
-    // Store category and ask for reason (simplified)
-    await interaction.reply({ content: `Category selected: ${category}. Use /ticket-create reason:your-issue to create ticket.`, ephemeral: true });
-  }
-});
+// Handle all interactions
+client.on('interactionCreate', handleInteraction);
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
