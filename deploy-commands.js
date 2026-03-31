@@ -72,13 +72,17 @@ const rest = new REST({ version: '10' }).setToken(token);
     }
     console.log('[Deploy] All deleted');
     
-    // Deploy first batch only (50)
-    console.log('[Deploy] Deploying first 50...');
-    const data = await rest.put(
-      Routes.applicationCommands(clientId),
-      { body: commands.slice(0, 50) }
-    );
-    console.log('[Deploy] Success:', data.length);
+    // Deploy all commands in batches
+    const batchSize = 50;
+    for (let i = 0; i < commands.length; i += batchSize) {
+      const batch = commands.slice(i, i + batchSize);
+      console.log(`[Deploy] Deploying ${i + 1}-${i + batch.length}...`);
+      const data = await rest.put(
+        Routes.applicationCommands(clientId),
+        { body: batch }
+      );
+      console.log('[Deploy] Success:', data.length);
+    }
     console.log('[Deploy] DONE!');
   } catch (e) {
     console.error('[Deploy] Error:', e.message);
