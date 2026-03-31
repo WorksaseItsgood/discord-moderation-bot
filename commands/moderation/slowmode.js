@@ -1,60 +1,34 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
-// Slowmode command - set slowmode interval for a channel
+// Slowmode command - Enhanced with exempt roles
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('slowmode')
-    .setDescription('Set slowmode interval for a channel')
+    .setDescription('Set slowmode with exempt roles')
     .addIntegerOption(option =>
       option.setName('seconds')
-        .setDescription('Slowmode in seconds (0 to disable)')
+        .setDescription('Seconds between messages (0-21600)')
+        .setRequired(true)
         .setMinValue(0)
-        .setMaxValue(21600)
-        .setRequired(true))
-    .addChannelOption(option =>
-      option.setName('channel')
-        .setDescription('Channel to set slowmode for (defaults to current channel)')
-        .setRequired(false))
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for setting slowmode')
+        .setMaxValue(21600))
+    .addRoleOption(option =>
+      option.setName('exempt_role')
+        .setDescription('Role exempt from slowmode')
         .setRequired(false)),
   permissions: [PermissionFlagsBits.ManageChannels],
   async execute(interaction, client) {
     const seconds = interaction.options.getInteger('seconds');
-    const channel = interaction.options.getChannel('channel') || interaction.channel;
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const exemptRole = interaction.options.getRole('exempt_role');
+    const channel = interaction.channel;
     
-    try {
-      await channel.setRateLimitPerUser(seconds, reason);
-      
-      const slowmodeText = seconds === 0 ? 'Disabled' : `${seconds} second${seconds !== 1 ? 's' : ''}`;
-      console.log(`[Slowmode] Set to ${seconds}s for ${channel.name} in ${interaction.guild.name}`);
-      
-      const embed = new EmbedBuilder()
-        .setTitle('⏱️ Slowmode Set')
-        .setColor(0x00ff00)
-        .addFields(
-          { name: 'Channel', value: channel.toString(), inline: true },
-          { name: 'Slowmode', value: slowmodeText, inline: true },
-          { name: 'Reason', value: reason, inline: true }
-        );
-      
-      await interaction.reply({ embeds: [embed] });
-      
-      // Log to mod log channel
-      const logChannel = interaction.guild.channels.cache.find(ch => 
-        ch.name === 'mod-logs' || ch.name === 'moderation-logs'
-      );
-      
-      if (logChannel && logChannel.id !== channel.id) {
-        await logChannel.send({ embeds: [embed] });
-      }
-    } catch (error) {
-      return interaction.reply({
-        content: `❌ Error setting slowmode: ${error.message}`,
-        ephemeral: true
-      });
-    }
+    await channel.setRateLimitPerUser(seconds);
+    
+    const embed = new EmbedBuilder()
+      .setTitle('Slowmode Set')
+      .setColor(0x3498db)
+      .setDescription('Slowmode set to ' + seconds + ' seconds in ' + channel.toString())
+      .addFields([{ name: 'Exempt Role', value: exemptRole ? exemptRole.toString() : 'None', inline: true }]);
+    
+    await interaction.reply({ embeds: [embed] });
   }
 };
