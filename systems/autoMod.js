@@ -38,22 +38,22 @@ class AutoModSystem {
       // Warning expiry
       warningExpiryDays: 7,              // Warnings expire after 7 days
       
-      // Scam patterns
+      // Scam patterns (simplified - no optional chaining to avoid parsing issues)
       scamPatterns: [
-        /discord.?nitro/gift/gi,
-        /free.?nitro/gi,
-        /steam.?community.?gift/gi,
-        /epic.?games.?free/gi,
-        /fortnite.?v-?bucks/gi,
-        /valorant.?points/gi,
-        /amazon.?gift.?card/gi,
-        /apple.?gift.?card/gi,
-        /google.?play.?card/gi,
-        /verify.?account/gi,
-        /confirm.?password/gi,
-        /crypto.?wallet/gi,
-        /wallet.?connect/gi,
-        /metamask.?verify/gi,
+        /discord nitro free/i,
+        /free nitro/i,
+        /steam gift/i,
+        /epic games free/i,
+        /fortnite vbucks/i,
+        /valorant points/i,
+        /amazon gift card/i,
+        /apple gift card/i,
+        /google play card/i,
+        /verify account/i,
+        /confirm password/i,
+        /crypto wallet/i,
+        /wallet connect/i,
+        /metamask verify/i,
       ],
       
       // Phishing patterns

@@ -152,6 +152,22 @@ function loadSystems() {
   } catch (e) {
     console.log('[System] Music not loaded (distube may not be installed):', e.message);
   }
+  
+  // Initialize Ultra Anti-Raid System
+  try {
+    require('./systems/ultraAntiRaid')(client);
+    console.log('[System] Loaded: ultraAntiRaid');
+  } catch (e) {
+    console.log('[System] Error loading ultraAntiRaid:', e.message);
+  }
+  
+  // Initialize AutoMod System
+  try {
+    require('./systems/autoMod')(client);
+    console.log('[System] Loaded: autoMod');
+  } catch (e) {
+    console.log('[System] Error loading autoMod:', e.message);
+  }
 }
 
 // Handle interactions - unified handler
