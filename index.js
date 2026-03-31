@@ -163,7 +163,8 @@ function loadSystems() {
   
   // Initialize AutoMod System
   try {
-    require('./systems/autoMod')(client);
+    const AutoModSystem = require('./systems/autoMod');
+    client.autoMod = new AutoModSystem(client);
     console.log('[System] Loaded: autoMod');
   } catch (e) {
     console.log('[System] Error loading autoMod:', e.message);

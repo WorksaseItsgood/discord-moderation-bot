@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { warning, info, COLOR } = require('../../utils/embedTemplates');
 
-// Warnings command - enhanced with filters, pagination, and stats
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warnings')
@@ -35,10 +35,10 @@ module.exports = {
     });
     
     if (userWarnings.length === 0) {
-      return interaction.reply({
-        content: user ? `✅ ${user} has no warnings!` : '📋 No warnings found.',
-        ephemeral: true
-      });
+      const noWarnEmbed = user 
+        ? info('No Warnings', `${user} has no warnings!`)
+        : info('No Warnings', 'No warnings found in this server.');
+      return interaction.reply({ embeds: [noWarnEmbed], ephemeral: true });
     }
     
     // Sort by timestamp descending
@@ -56,30 +56,53 @@ module.exports = {
     const expiredWarnings = totalWarnings - activeWarnings;
     
     const embed = new EmbedBuilder()
+      .setColor(COLOR.WARNING)
       .setTitle(user ? `⚠️ Warnings for ${user.tag}` : '⚠️ All Warnings')
-      .setColor(0xffaa00)
-      .setDescription(`Page ${page}/${totalPages} | Total: ${userWarnings.length}`);
+      .setDescription(`Page ${page}/${totalPages} | Total: ${userWarnings.length} warning(s)`);
     
     // Add stats if viewing all
     if (!user) {
       embed.addFields(
         { name: '📊 Total', value: String(totalWarnings), inline: true },
         { name: '✅ Active', value: String(activeWarnings), inline: true },
-        { name: '❌ Expired', value: String(expiredWarnings), inline: true }
+        { name: '⏳ Expired', value: String(expiredWarnings), inline: true }
       );
     }
     
-    for (const warning of pageWarnings) {
-      const date = new Date(warning.timestamp).toLocaleDateString();
-      const status = warning.expiresAt && warning.expiresAt < now ? '⏳ Expired' : '⚠️ Active';
+    for (const warn of pageWarnings) {
+      const date = new Date(warn.timestamp).toLocaleDateString();
+      const status = warn.expiresAt && warn.expiresAt < now ? '⏳' : '⚠️';
       
       embed.addFields({
-        name: `${status} #${warning.id}`,
-        value: `**User:** <@${warning.userId}>\n**Reason:** ${warning.reason}\n**By:** ${warning.moderator}\n**Date:** ${date}`,
+        name: `${status} Warning #${warn.id}`,
+        value: `**User:** <@${warn.userId}>\n**Reason:** ${warn.reason}\n**By:** ${warn.moderator}\n**Date:** ${date}`,
         inline: false
       });
     }
     
-    await interaction.reply({ embeds: [embed] });
+    // Add navigation buttons
+    const row = new ActionRowBuilder();
+    
+    if (totalPages > 1) {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`warnings_prev_${page}`)
+          .setLabel('◀')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(page === 1),
+        new ButtonBuilder()
+          .setCustomId(`warnings_page_${page}`)
+          .setLabel(`${page}/${totalPages}`)
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(true),
+        new ButtonBuilder()
+          .setCustomId(`warnings_next_${page}`)
+          .setLabel('▶')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(page === totalPages)
+      );
+    }
+    
+    await interaction.reply({ embeds: [embed], components: totalPages > 1 ? [row] : [], ephemeral: true });
   }
 };

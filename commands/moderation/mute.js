@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { defaultConfig } = require('../../config');
+const { muteEmbed, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Mute command - supports timeout and role-based mute
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mute')
@@ -26,14 +26,13 @@ module.exports = {
     
     const member = interaction.guild.members.cache.get(user.id);
     if (!member) {
-      return interaction.reply({
-        content: '❌ User not found in this server!',
-        ephemeral: true
-      });
+      const errEmbed = errorEmbed('User Not Found', 'User not found in this server!');
+      return interaction.reply({ embeds: [errEmbed], ephemeral: true });
     }
     
     // Calculate mute duration
     let muteDurationMs = null;
+    let durationText = duration || '28 days';
     if (duration) {
       const durationMatch = duration.match(/^(\d+)([dhms])$/i);
       if (durationMatch) {
@@ -45,6 +44,7 @@ module.exports = {
     }
     
     // Try timeout first (Discord native)
+    let usedTimeout = false;
     try {
       if (muteDurationMs) {
         // Max timeout is 28 days
@@ -55,6 +55,7 @@ module.exports = {
         const timeoutDuration = 28 * 24 * 60 * 60 * 1000;
         await member.timeout(timeoutDuration, reason);
       }
+      usedTimeout = true;
     } catch (error) {
       // If timeout fails, try role-based mute
       const muteRoleId = defaultConfig.moderation?.muteRole;
@@ -67,32 +68,35 @@ module.exports = {
             throw new Error('Mute role not found');
           }
         } catch (roleError) {
-          return interaction.reply({
-            content: `❌ Error muting user: ${roleError.message}`,
-            ephemeral: true
-          });
+          const errEmbed = errorEmbed('Mute Failed', roleError.message);
+          return interaction.reply({ embeds: [errEmbed], ephemeral: true });
         }
       } else {
-        return interaction.reply({
-          content: `❌ Error muting user: ${error.message}. No mute role configured.`,
-          ephemeral: true
-        });
+        const errEmbed = errorEmbed('Mute Failed', `${error.message}. No mute role configured.`);
+        return interaction.reply({ embeds: [errEmbed], ephemeral: true });
       }
     }
     
-    const durationText = duration || '28 days';
     console.log(`[Mute] ${user.tag} muted in ${interaction.guild.name}. Reason: ${reason}, Duration: ${durationText}`);
     
-    const embed = new EmbedBuilder()
-      .setTitle('🔇 User Muted')
-      .setColor(0xffaa00)
-      .addFields(
-        { name: 'User', value: `${user} (${user.id})`, inline: true },
-        { name: 'Reason', value: reason, inline: true },
-        { name: 'Duration', value: durationText, inline: true }
+    const action = muteDurationMs ? 'Temporary Mute Applied' : 'User Muted';
+    const muteSuccessEmbed = muteEmbed(action, user, interaction.user, reason, durationText);
+    
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`mute_info_${user.id}`)
+          .setLabel('Mute Info')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('ℹ️'),
+        new ButtonBuilder()
+          .setCustomId(`mute_unmute_${user.id}`)
+          .setLabel('Unmute Now')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔊')
       );
     
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [muteSuccessEmbed], components: [row] });
     
     // Log to mod log channel
     const logChannel = interaction.guild.channels.cache.find(ch => 
@@ -100,7 +104,7 @@ module.exports = {
     );
     
     if (logChannel) {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({ embeds: [muteSuccessEmbed] });
     }
   }
 };

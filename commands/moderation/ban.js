@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { defaultConfig } = require('../../config');
+const { banEmbed, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Ban command
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ban')
@@ -29,11 +30,12 @@ module.exports = {
     const dm = interaction.options.getBoolean('dm') ?? true;
     
     const member = interaction.guild.members.cache.get(user.id);
-    const guildConfig = require('../../config').defaultConfig;
+    const guildConfig = defaultConfig;
     const dmOnAction = guildConfig.moderation?.dmOnAction ?? true;
     
     // Calculate ban duration in milliseconds
     let banDurationMs = null;
+    let durationText = null;
     if (duration) {
       const durationMatch = duration.match(/^(\d+)([dhms])$/i);
       if (durationMatch) {
@@ -41,50 +43,54 @@ module.exports = {
         const unit = durationMatch[2].toLowerCase();
         const multipliers = { d: 86400000, h: 3600000, m: 60000, s: 1000 };
         banDurationMs = value * multipliers[unit];
+        durationText = duration;
       }
     }
     
     // Check if user is banable
     if (member) {
       if (!member.bannable) {
-        return interaction.reply({
-          content: '❌ I cannot ban this user! They may have higher permissions than me.',
-          ephemeral: true
-        });
+        const errEmbed = errorEmbed('Cannot Ban', 'I cannot ban this user! They may have higher permissions than me.');
+        return interaction.reply({ embeds: [errEmbed], ephemeral: true });
       }
     }
     
-    // Build DM embed
-    const dmEmbed = new EmbedBuilder()
-      .setTitle('🔨 You have been banned')
-      .setColor(0xff0000)
-      .addFields(
-        { name: 'Server', value: interaction.guild.name },
-        { name: 'Reason', value: reason }
-      );
-    
-    if (banDurationMs) {
-      dmEmbed.addFields({ name: 'Duration', value: duration });
-    }
-    
-    // Try to DM user
-    if (dm && dmOnAction) {
-      try {
-        await user.send({ embeds: [dmEmbed] });
-      } catch (error) {
-        console.log(`[Ban] Could not DM user ${user.tag}:`, error.message);
-      }
-    }
-    
-    // Ban the user
+    // Try to ban the user
     try {
       const banOptions = {
         reason: `${reason}${banDurationMs ? ` (Temp ban: ${duration})` : ''}`
       };
       
+      let dmSent = false;
+      
+      if (dm && dmOnAction) {
+        const { EmbedBuilder } = require('discord.js');
+        const dmEmbed = new EmbedBuilder()
+          .setColor(COLOR.ERROR)
+          .setTitle('🔨 You have been banned')
+          .setDescription(`You were banned from **${interaction.guild.name}**`)
+          .addFields(
+            { name: 'Reason', value: reason, inline: false }
+          );
+        
+        if (durationText) {
+          dmEmbed.addFields({ name: 'Duration', value: durationText, inline: true });
+        }
+        
+        dmEmbed
+          .setFooter({ text: 'Niotic Moderation' })
+          .setTimestamp();
+        
+        try {
+          await user.send({ embeds: [dmEmbed] });
+          dmSent = true;
+        } catch (err) {
+          console.log(`[Ban] Could not DM user ${user.tag}: ${err.message}`);
+        }
+      }
+      
       if (banDurationMs) {
-        // For temporary bans, we need to store the ban info
-        // Discord.js doesn't natively support temp bans, so we ban now and schedule unban
+        // Temporary ban
         await interaction.guild.bans.create(user.id, banOptions);
         
         // Store temp ban info
@@ -107,40 +113,40 @@ module.exports = {
       } else {
         await interaction.guild.bans.create(user.id, banOptions);
       }
-    } catch (error) {
-      return interaction.reply({
-        content: `❌ Error banning user: ${error.message}`,
-        ephemeral: true
-      });
-    }
-    
-    // Log the ban
-    console.log(`[Ban] ${user.tag} (${user.id}) banned in ${interaction.guild.name}. Reason: ${reason}`);
-    
-    // Reply to moderator
-    const embed = new EmbedBuilder()
-      .setTitle('🔨 User Banned')
-      .setColor(0xff0000)
-      .addFields(
-        { name: 'User', value: `${user} (${user.id})`, inline: true },
-        { name: 'Reason', value: reason, inline: true }
+      
+      console.log(`[Ban] ${user.tag} (${user.id}) banned in ${interaction.guild.name}. Reason: ${reason}`);
+      
+      // Build success embed
+      const action = banDurationMs ? 'Temporary Ban Issued' : 'User Banned';
+      const banSuccessEmbed = banEmbed(action, user, interaction.user, reason, durationText);
+      
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`ban_info_${user.id}`)
+            .setLabel('Ban Info')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('ℹ️'),
+          new ButtonBuilder()
+            .setCustomId(`ban_unban_${user.id}`)
+            .setLabel('Unban Now')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔨')
+        );
+      
+      await interaction.reply({ embeds: [banSuccessEmbed], components: [row] });
+      
+      // Log to mod log channel
+      const logChannel = interaction.guild.channels.cache.find(ch => 
+        ch.name === 'mod-logs' || ch.name === 'moderation-logs'
       );
-    
-    if (duration) {
-      embed.addFields({ name: 'Duration', value: duration, inline: true });
-    }
-    
-    embed.addFields({ name: 'DM Sent', value: dm && dmOnAction ? '✅' : '❌' });
-    
-    await interaction.reply({ embeds: [embed] });
-    
-    // Log to mod log channel
-    const logChannel = interaction.guild.channels.cache.find(ch => 
-      ch.name === 'mod-logs' || ch.name === 'moderation-logs'
-    );
-    
-    if (logChannel) {
-      await logChannel.send({ embeds: [embed] });
+      
+      if (logChannel) {
+        await logChannel.send({ embeds: [banSuccessEmbed] });
+      }
+    } catch (error) {
+      const errEmbed = errorEmbed('Ban Failed', error.message);
+      await interaction.reply({ embeds: [errEmbed], ephemeral: true });
     }
   }
 };

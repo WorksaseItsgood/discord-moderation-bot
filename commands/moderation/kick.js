@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { defaultConfig } = require('../../config');
+const { kickEmbed, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Kick command
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('kick')
@@ -24,34 +25,36 @@ module.exports = {
     const dm = interaction.options.getBoolean('dm') ?? true;
     
     const member = interaction.guild.members.cache.get(user.id);
-    const guildConfig = require('../../config').defaultConfig;
+    const guildConfig = defaultConfig;
     const dmOnAction = guildConfig.moderation?.dmOnAction ?? true;
     
     // Check if user is kickable
     if (member) {
       if (!member.kickable) {
-        return interaction.reply({
-          content: '❌ I cannot kick this user! They may have higher permissions than me.',
-          ephemeral: true
-        });
+        const errEmbed = errorEmbed('Cannot Kick', 'I cannot kick this user! They may have higher permissions than me.');
+        return interaction.reply({ embeds: [errEmbed], ephemeral: true });
       }
     }
     
-    // Build DM embed
-    const dmEmbed = new EmbedBuilder()
-      .setTitle('👢 You have been kicked')
-      .setColor(0xffaa00)
-      .addFields(
-        { name: 'Server', value: interaction.guild.name },
-        { name: 'Reason', value: reason }
-      );
-    
     // Try to DM user
+    let dmSent = false;
     if (dm && dmOnAction) {
+      const { EmbedBuilder } = require('discord.js');
+      const dmEmbed = new EmbedBuilder()
+        .setColor(COLOR.MOD)
+        .setTitle('👢 You have been kicked')
+        .setDescription(`You were kicked from **${interaction.guild.name}**`)
+        .addFields(
+          { name: 'Reason', value: reason }
+        )
+        .setFooter({ text: 'Niotic Moderation' })
+        .setTimestamp();
+      
       try {
         await user.send({ embeds: [dmEmbed] });
-      } catch (error) {
-        console.log(`[Kick] Could not DM user ${user.tag}:`, error.message);
+        dmSent = true;
+      } catch (err) {
+        console.log(`[Kick] Could not DM user ${user.tag}: ${err.message}`);
       }
     }
     
@@ -59,25 +62,29 @@ module.exports = {
     try {
       await member.kick(reason);
     } catch (error) {
-      return interaction.reply({
-        content: `❌ Error kicking user: ${error.message}`,
-        ephemeral: true
-      });
+      const errEmbed = errorEmbed('Kick Failed', error.message);
+      return interaction.reply({ embeds: [errEmbed], ephemeral: true });
     }
     
     console.log(`[Kick] ${user.tag} (${user.id}) kicked from ${interaction.guild.name}. Reason: ${reason}`);
     
-    const embed = new EmbedBuilder()
-      .setTitle('👢 User Kicked')
-      .setColor(0xffaa00)
-      .addFields(
-        { name: 'User', value: `${user} (${user.id})`, inline: true },
-        { name: 'Reason', value: reason, inline: true }
+    const kickSuccessEmbed = kickEmbed('User Kicked', user, interaction.user, reason);
+    
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`kick_warn_${user.id}`)
+          .setLabel('Warn')
+          .setStyle(ButtonStyle.Warning)
+          .setEmoji('⚠️'),
+        new ButtonBuilder()
+          .setCustomId(`kick_ban_${user.id}`)
+          .setLabel('Ban')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔨')
       );
     
-    embed.addFields({ name: 'DM Sent', value: dm && dmOnAction ? '✅' : '❌' });
-    
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [kickSuccessEmbed], components: [row] });
     
     // Log to mod log channel
     const logChannel = interaction.guild.channels.cache.find(ch => 
@@ -85,7 +92,7 @@ module.exports = {
     );
     
     if (logChannel) {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({ embeds: [kickSuccessEmbed] });
     }
   }
 };

@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { defaultConfig } = require('../../config');
+const { warning, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Warn command
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warn')
@@ -29,9 +29,10 @@ module.exports = {
     
     const guildWarnings = client.warnings.get(interaction.guild.id) || [];
     const userWarnings = guildWarnings.filter(w => w.userId === user.id);
+    const totalWarnings = userWarnings.length + 1;
     
     // Add new warning
-    const warning = {
+    const warningData = {
       id: guildWarnings.length + 1,
       userId: user.id,
       userTag: user.tag,
@@ -41,39 +42,50 @@ module.exports = {
       expiresAt: Date.now() + (defaultConfig.moderation?.warnExpiryDays || 30) * 24 * 60 * 60 * 1000
     };
     
-    guildWarnings.push(warning);
+    guildWarnings.push(warningData);
     client.warnings.set(interaction.guild.id, guildWarnings);
     
     console.log(`[Warn] ${user.tag} warned in ${interaction.guild.name}. Reason: ${reason}`);
     
+    const warnEmbed = warning('Warning Issued', user, interaction.user, reason, totalWarnings);
+    
     // DM user if enabled
     if (dmOnAction) {
-      const dmEmbed = new EmbedBuilder()
+      const dmEmbed = new (require('discord.js').EmbedBuilder)()
+        .setColor(COLOR.WARNING)
         .setTitle('⚠️ You have been warned')
-        .setColor(0xffaa00)
+        .setDescription(`You received a warning in **${interaction.guild.name}**`)
         .addFields(
-          { name: 'Server', value: interaction.guild.name },
-          { name: 'Reason', value: reason },
-          { name: 'Total Warnings', value: String(userWarnings.length + 1) }
-        );
+          { name: 'Reason', value: reason, inline: false },
+          { name: 'Total Warnings', value: String(totalWarnings), inline: true },
+          { name: 'Moderator', value: interaction.user.tag, inline: true }
+        )
+        .setFooter({ text: 'Niotic Moderation' })
+        .setTimestamp();
       
       try {
         await user.send({ embeds: [dmEmbed] });
-      } catch (error) {
-        console.log(`[Warn] Could not DM user ${user.tag}: ${error.message}`);
+      } catch (err) {
+        console.log(`[Warn] Could not DM user ${user.tag}: ${err.message}`);
       }
     }
     
-    const embed = new EmbedBuilder()
-      .setTitle('⚠️ User Warned')
-      .setColor(0xffaa00)
-      .addFields(
-        { name: 'User', value: `${user} (${user.id})`, inline: true },
-        { name: 'Reason', value: reason, inline: true },
-        { name: 'Total Warnings', value: String(userWarnings.length + 1), inline: true }
+    // Add action buttons
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`warn_view_${user.id}`)
+          .setLabel('View Warnings')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('📋'),
+        new ButtonBuilder()
+          .setCustomId(`warn_clear_${user.id}`)
+          .setLabel('Clear Warnings')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🗑️')
       );
     
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [warnEmbed], components: [row] });
     
     // Log to mod log channel
     const logChannel = interaction.guild.channels.cache.find(ch => 
@@ -81,7 +93,7 @@ module.exports = {
     );
     
     if (logChannel) {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({ embeds: [warnEmbed] });
     }
   }
 };
