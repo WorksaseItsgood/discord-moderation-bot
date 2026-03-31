@@ -1,0 +1,742 @@
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+
+const funCommands = [
+  // 8ball with more responses
+  {
+    data: new SlashCommandBuilder()
+      .setName('8ball')
+      .setDescription('Ask the magic 8 ball')
+      .addStringOption(o => o.setName('question').setDescription('Your question').setRequired(true)),
+    async execute(interaction) {
+      const responses = [
+        'Yes!', 'No!', 'Maybe!', 'Definitely!', 'Absolutely not!',
+        'Ask again later', 'Signs point to yes', 'Outlook good',
+        'Very doubtful', 'Without a doubt', 'My sources say no',
+        'Concentrate and ask again', 'Don\'t count on it',
+        'It is certain', 'You may rely on it', 'Reply hazy, try again',
+        'Yes - in due time', 'Better not tell you now', 'Definitely yes',
+        'Absolutely', 'A million percent yes', 'Zero chance',
+        '100% yes', '404 Not Found', '42', '42 is the answer',
+        'The universe says yes!', 'The spirits say no...',
+      ];
+      const question = interaction.options.getString('question');
+      const answer = responses[Math.floor(Math.random() * responses.length)];
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🎱 Magic 8 Ball')
+        .setDescription(`**Q:** ${question}\n\n**A:** ${answer}`)
+        .setColor(0x5865F2)
+        .setTimestamp();
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // Hack (fun)
+  {
+    data: new SlashCommandBuilder()
+      .setName('hack')
+      .setDescription('Fake hack someone (fun)')
+      .addUserOption(o => o.setName('target').setDescription('Target').setRequired(true)),
+    async execute(interaction) {
+      const target = interaction.options.getUser('target');
+      const steps = [
+        '🔌 Connecting...',
+        '🔍 Scanning IP...',
+        '💉 Injecting payload...',
+        '🔓 Bypassing firewall...',
+        '📂 Accessing files...',
+        '🗝️ Decrypting...',
+        '💀 Hacker: Done!',
+      ];
+      
+      await interaction.reply(`🧑‍💻 Hacking ${target}...`);
+      
+      for (let i = 0; i < steps.length; i++) {
+        await new Promise(r => setTimeout(r, 600));
+        await interaction.followUp({ content: steps[i], ephemeral: true });
+      }
+    },
+  },
+  
+  // Kill (fun)
+  {
+    data: new SlashCommandBuilder()
+      .setName('kill')
+      .setDescription('Animated kill (fun)')
+      .addUserOption(o => o.setName('target').setDescription('Target').setRequired(true)),
+    async execute(interaction) {
+      const target = interaction.options.getUser('target');
+      const methods = ['🗡️', '🔫', '💣', '🔥', '🪓', '⚡'];
+      const method = methods[Math.floor(Math.random() * methods.length)];
+      
+      await interaction.reply(`${interaction.user} kills ${target} with ${method}! 💀`);
+    },
+  },
+  
+  // Bomb
+  {
+    data: new SlashCommandBuilder()
+      .setName('bomb')
+      .setDescription('Drop a bomb')
+      .addUserOption(o => o.setName('target').setDescription('Target').setRequired(true)),
+    async execute(interaction) {
+      const target = interaction.options.getUser('target');
+      
+      await interaction.reply(`💣 Bomb placed on ${target}!`);
+      
+      for (let i = 5; i > 0; i--) {
+        await new Promise(r => setTimeout(r, 800));
+        await interaction.followUp({ content: `⏰ ${i}...`, ephemeral: true });
+      }
+      
+      await interaction.followUp({ content: '💥 BOOM!', ephemeral: true });
+    },
+  },
+  
+  // Would you rather
+  {
+    data: new SlashCommandBuilder()
+      .setName('wyr')
+      .setDescription('Would you rather...'),
+    async execute(interaction) {
+      const questions = [
+        'Infinite money or infinite time?',
+        'Be invisible or read minds?',
+        'Be 10 min late or 20 min early?',
+        'Fight a horse-sized duck or 100 duck-sized horses?',
+        'Fly or be invisible?',
+        'No social media or no TV?',
+        'Super strength or super speed?',
+        'Explore space or ocean?',
+        'Be famous or be best friend of famous?',
+        'No taste or no smell?',
+        'Have rewind or pause for life?',
+        'More luck or more skill?',
+        'Know how or when you die?',
+      ];
+      
+      const q = questions[Math.floor(Math.random() * questions.length)];
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🤔 Would You Rather...')
+        .setDescription(q)
+        .setColor(0xFF6B6B)
+        .setTimestamp();
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // TicTacToe
+  {
+    data: new SlashCommandBuilder()
+      .setName('tictactoe')
+      .setDescription('Play tic tac toe')
+      .addUserOption(o => o.setName('opponent').setDescription('Opponent').setRequired(true)),
+    async execute(interaction) {
+      const opponent = interaction.options.getUser('opponent');
+      
+      const buttons = [
+        new ButtonBuilder().setCustomId('ttt-0').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-1').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-2').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-3').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-4').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-5').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-6').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-7').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ttt-8').setEmoji('⬜').setStyle(ButtonStyle.Secondary),
+      ];
+      
+      const embed = new EmbedBuilder()
+        .setTitle('⭕❌ Tic Tac Toe')
+        .setDescription(`${interaction.user} vs ${opponent}`)
+        .setColor(0x5865F2);
+      
+      await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(buttons.slice(0, 5)), new ActionRowBuilder().addComponents(buttons.slice(5))] });
+    },
+  },
+  
+  // Hangman
+  {
+    data: new SlashCommandBuilder()
+      .setName('hangman')
+      .setDescription('Play hangman'),
+    async execute(interaction) {
+      const words = ['javascript', 'discord', ' moderaton', 'game', 'music', 'coding'];
+      const word = words[Math.floor(Math.random() * words.length)];
+      const display = '_ '.repeat(word.length);
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🎭 Hangman')
+        .setDescription(`${display}\n\nGuess a letter!`)
+        .setColor(0x5865F2);
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // High Low
+  {
+    data: new SlashCommandBuilder()
+      .setName('highlow')
+      .setDescription('Guess high or low')
+      .addStringOption(o => o.setName('guess').setDescription('Your guess')
+        .setChoices({ name: 'Higher', value: 'high' }, { name: 'Lower', value: 'low' }))
+        .setRequired(true)),
+    async execute(interaction) {
+      const guess = interaction.options.getString('guess');
+      const num = Math.floor(Math.random() * 100) + 1;
+      
+      const result = (guess === 'high' && num > 50) || (guess === 'low' && num <= 50) ? '✅ Correct!' : '❌ Wrong!';
+      const embed = new EmbedBuilder()
+        .setTitle('🎯 High Low')
+        .setDescription(`Number: ${num}\nYour guess: ${guess}\n\n${result}`)
+        .setColor(0x5865F2);
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // RPS
+  {
+    data: new SlashCommandBuilder()
+      .setName('rps')
+      .setDescription('Rock paper scissors')
+      .addStringOption(o => o.setName('choice').setDescription('Your choice')
+        .setChoices({ name: 'Rock', value: 'rock' }, { name: 'Paper', value: 'paper' }, { name: 'Scissors', value: 'scissors' }))
+        .setRequired(true)),
+    async execute(interaction) {
+      const choice = interaction.options.getString('choice');
+      const bots = ['rock', 'paper', 'scissors'];
+      const bot = bots[Math.floor(Math.random() * bots.length)];
+      
+      let result = 'draw';
+      if ((choice === 'rock' && bot === 'scissors') || (choice === 'paper' && bot === 'rock') || (choice === 'scissors' && bot === 'paper')) {
+        result = 'win';
+      } else if ((bot === 'rock' && choice === 'scissors') || (bot === 'paper' && choice === 'rock') || (bot === 'scissors' && choice === 'paper')) {
+        result = 'lose';
+      }
+      
+      const embed = new EmbedBuilder()
+        .setTitle('✊✋✌️ RPS')
+        .setDescription(`You: ${choice}\nBot: ${bot}\n\n${result === 'win' ? '🎉 You win!' : result === 'lose' ? '😢 You lose!' : '🤝 Draw!'}`)
+        .setColor(result === 'win' ? 0x00FF00 : result === 'lose' ? 0xFF0000 : 0xFFFF00);
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // Color info
+  {
+    data: new SlashCommandBuilder()
+      .setName('color')
+      .setDescription('Get color info')
+      .addStringOption(o => o.setName('hex').setDescription('Hex code').setRequired(true)),
+    async execute(interaction) {
+      let hex = interaction.options.getString('hex').replace('#', '');
+      if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
+        return interaction.reply({ content: 'Invalid hex! Use #RRGGBB format', ephemeral: true });
+      }
+      hex = hex.toUpperCase();
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🎨 Color Info')
+        .setDescription(`**Hex:** #${hex}\n**RGB:** ${parseInt(hex.substr(0,2),16)}, ${parseInt(hex.substr(2,2),16)}, ${parseInt(hex.substr(4,2),16)}`)
+        .setColor(parseInt(hex, 16));
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // Reverse text
+  {
+    data: new SlashCommandBuilder()
+      .setName('reverse')
+      .setDescription('Reverse text')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      const reversed = text.split('').reverse().join('');
+      
+      await interaction.reply({ content: `🔄 Reversed:\n${reversed}` });
+    },
+  },
+  
+  // Vaporwave
+  {
+    data: new SlashCommandBuilder()
+      .setName('vaporwave')
+      .setDescription('Convert text to vaporwave')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      const fullwidth = 'ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ';
+      const lower = 'abcdefghijklmnopqrstuvwxyz';
+      
+      let converted = '';
+      for (const char of text) {
+        const idx = lower.indexOf(char);
+        if (idx >= 0) converted += fullwidth[idx];
+        else converted += char;
+      }
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🌊 Vaporwave')
+        .setDescription(converted)
+        .setColor(0xFF71CE);
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // Corporate speak
+  {
+    data: new SlashCommandBuilder()
+      .setName('corporate')
+      .setDescription('Generate corporate speak'),
+    async execute(interaction) {
+      const phrases = [
+        'Let\'s circle back on that', 'Moving the needle', 'Low-hanging fruit',
+        'Synergize our efforts', 'Best-in-class', 'Think outside the box',
+        'Deep dive', 'At the end of the day', 'Take it offline',
+        'Pivot', 'Disrupt the market', 'Boil the ocean',
+      ];
+      
+      const embed = new EmbedBuilder()
+        .setTitle('💼 Corporate Speak')
+        .setDescription(phrases[Math.floor(Math.random() * phrases.length)])
+        .setColor(0x1E3A5F);
+      
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  // Animations
+  {
+    data: new SlashCommandBuilder()
+      .setName('tableflip')
+      .setDescription('Flip table'),
+    async execute(interaction) {
+      await interaction.reply('(╯°□°）╯︵ ┻━┻');
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('unflip')
+      .setDescription('Unflip table'),
+    async execute(interaction) {
+      await interaction.reply('┬─┬ノ(°□°ノ)');
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('shrug')
+      .setDescription('Shrug'),
+    async execute(interaction) {
+      await interaction.reply('¯\\_(ツ)_/¯');
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('lenny')
+      .setDescription('( ͡° ͜ʖ ͡°)'),
+    async execute(interaction) {
+      await interaction.reply('( ͡° ͜ʖ ͡°)');
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('bruh')
+      .setDescription('Bruh'),
+    async execute(interaction) {
+      await interaction.reply('**bruh** 😤');
+    },
+  },
+  
+  // Actions
+  {
+    data: new SlashCommandBuilder()
+      .setName('hug')
+      .setDescription('Hug someone')
+      .addUserOption(o => o.setName('user').setDescription('User').setRequired(true)),
+    async execute(interaction) {
+      const user = interaction.options.getUser('user');
+      await interaction.reply(`${interaction.user} hugs ${user} (^ω^)`);
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('pat')
+      .setDescription('Pat someone')
+      .addUserOption(o => o.setName('user').setDescription('User').setRequired(true)),
+    async execute(interaction) {
+      const user = interaction.options.getUser('user');
+      await interaction.reply(`${interaction.user} pats ${user} (◕‿◕)`);
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('spank')
+      .setDescription('Spank someone')
+      .addUserOption(o => o.setName('user').setDescription('User').setRequired(true)),
+    async execute(interaction) {
+      const user = interaction.options.getUser('user');
+      await interaction.reply(`${interaction.user} spanks ${user} ( spank )`);
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('kill')
+      .setDescription('Kill someone')
+      .addUserOption(o => o.setName('user').setDescription('User').setRequired(true)),
+    async execute(interaction) {
+      const user = interaction.options.getUser('user');
+      await interaction.reply(`${interaction.user} kills ${user} 💀`);
+    },
+  },
+  
+  // Meme commands
+  {
+    data: new SlashCommandBuilder()
+      .setName('beLikeBill')
+      .setDescription('Bill meme')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      const embed = new EmbedBuilder()
+        .setTitle('🐴 Be Like Bill')
+        .setDescription(`I'm Bill and I don't like ${text}`)
+        .setColor(0xFFD700);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('beautiful')
+      .setDescription('Rate beauty')
+      .addUserOption(o => o.setName('user').setDescription('User')),
+    async execute(interaction) {
+      const user = interaction.options.getUser('user') || interaction.user;
+      const score = Math.floor(Math.random() * 100);
+      const ratings = ['🔥 Stunning!', '✨ Gorgeous!', '😊 Cute', '😐 Not bad'];
+      const rating = ratings[Math.floor(score / 25)];
+      
+      const embed = new EmbedBuilder()
+        .setTitle('✨ Beauty Rating')
+        .setDescription(`${user}\n**${score}**/100\n${rating}`)
+        .setColor(0xFF69B4);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('changemymind')
+      .setDescription('Change my mind meme')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      const embed = new EmbedBuilder()
+        .setTitle('🧠 Change My Mind')
+        .setDescription(`${text}\n\n_Change my mind_`)
+        .setColor(0x5865F2);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('drake')
+      .setDescription('Drake meme')
+      .addStringOption(o => o.setName('top').setDescription('Top text').setRequired(true))
+      .addStringOption(o => o.setName('bottom').setDescription('Bottom text').setRequired(true)),
+    async execute(interaction) {
+      const top = interaction.options.getString('top');
+      const bottom = interaction.options.getString('bottom');
+      const embed = new EmbedBuilder()
+        .setTitle('🎤 Drake Says')
+        .setDescription(`❌ ${top}\n\n✅ ${bottom}`)
+        .setColor(0x5865F2);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('distracted')
+      .setDescription('Distracted boyfriend meme')
+      .addStringOption(o => o.setName('bf').setDescription('What boyfriend looks at').setRequired(true))
+      .addStringOption(o => o.setName('girl').setDescription('Girlfriend').setRequired(true))
+      .addStringOption(o => o.setName('new').setDescription('New thing').setRequired(true)),
+    async execute(interaction) {
+      const bf = interaction.options.getString('bf');
+      const girl = interaction.options.getString('girl');
+      const neu = interaction.options.getString('new');
+      const embed = new EmbedBuilder()
+        .setTitle('👀 Distracted Boyfriend')
+        .setDescription(`**Me:** ${girl}\n**Looking at:** ${bf}\n**New:** ${neu}`)
+        .setColor(0xFF69B4);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('button')
+      .setDescription('Buttons meme')
+      .addStringOption(o => o.setName('b1').setDescription('Button 1').setRequired(true))
+      .addStringOption(o => o.setName('b2').setDescription('Button 2').setRequired(true))
+      .addStringOption(o => o.setName('result').setDescription('Result').setRequired(true)),
+    async execute(interaction) {
+      const b1 = interaction.options.getString('b1');
+      const b2 = interaction.options.getString('b2');
+      const result = interaction.options.getString('result');
+      await interaction.reply({ content: `[${b1}]  [${b2}]\nClicked: ${result}` });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('danger')
+      .setDescription('🛑 Danger! 🛑'),
+    async execute(interaction) {
+      await interaction.reply('🛑🛑🛑\nDANGER\n🛑🛑🛑');
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('fact')
+      .setDescription('Random fact'),
+    async execute(interaction) {
+      const facts = [
+        'Honey never spoils!', 'Octopuses have 3 hearts!',
+        'Bananas are berries!', 'Wombat poop is cubic!',
+        'Sharks are older than trees!', 'Venus flytrap can count!',
+      ];
+      const embed = new EmbedBuilder()
+        .setTitle('💡 Random Fact')
+        .setDescription(facts[Math.floor(Math.random() * facts.length)])
+        .setColor(0x5865F2);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('joke')
+      .setDescription('Random joke'),
+    async execute(interaction) {
+      const jokes = [
+        'Why do programmers prefer dark mode? Because light attracts bugs!',
+        'Why did the developer go broke? Because he used up all his cache!',
+        'What do you call a fake noodle? An impasta!',
+        'Why do Java developers wear glasses? Because they can\'t C#!',
+      ];
+      const embed = new EmbedBuilder()
+        .setTitle('😂 Random Joke')
+        .setDescription(jokes[Math.floor(Math.random() * jokes.length)])
+        .setColor(0xFFA500);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('mock')
+      .setDescription('MoCkInG TeXt')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      let mocked = '';
+      for (const char of text) {
+        mocked += Math.random() > 0.5 ? char.toUpperCase() : char.toLowerCase();
+      }
+      await interaction.reply(mocked);
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('say')
+      .setDescription('Make the bot say something')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      await interaction.reply(text);
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('roll')
+      .setDescription('Roll dice')
+      .addStringOption(o => o.setName('dice').setDescription('Dice (e.g., 2d6)')),
+    async execute(interaction) {
+      const dice = interaction.options.getString('dice') || '1d6';
+      const match = dice.match(/(\d+)d(\d+)/);
+      if (!match) {
+        return interaction.reply({ content: 'Use format like 2d6', ephemeral: true });
+      }
+      const num = parseInt(match[1]);
+      const sides = parseInt(match[2]);
+      let total = 0;
+      const rolls = [];
+      for (let i = 0; i < num; i++) {
+        const r = Math.floor(Math.random() * sides) + 1;
+        rolls.push(r);
+        total += r;
+      }
+      const embed = new EmbedBuilder()
+        .setTitle('🎲 Roll')
+        .setDescription(`**${dice}:** ${rolls.join(', ')} = ${total}`)
+        .setColor(0x5865F2);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('flipcoin')
+      .setDescription('Flip a coin'),
+    async execute(interaction) {
+      const result = Math.random() > 0.5 ? 'Heads' : 'Tails';
+      const embed = new EmbedBuilder()
+        .setTitle('🪙 Coin Flip')
+        .setDescription(result)
+        .setColor(0xFFD700);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('randomnumber')
+      .setDescription('Random number')
+      .addIntegerOption(o => o.setName('min').setDescription('Min'))
+      .addIntegerOption(o => o.setName('max').setDescription('Max')),
+    async execute(interaction) {
+      const min = interaction.options.getInteger('min') || 1;
+      const max = interaction.options.getInteger('max') || 100;
+      const num = Math.floor(Math.random() * (max - min + 1)) + min;
+      await interaction.reply({ content: `🎲 Random: ${num}` });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('ship')
+      .setDescription('Ship two users')
+      .addUserOption(o => o.setName('user1').setDescription('User 1').setRequired(true))
+      .addUserOption(o => o.setName('user2').setDescription('User 2').setRequired(true)),
+    async execute(interaction) {
+      const u1 = interaction.options.getUser('user1');
+      const u2 = interaction.options.getUser('user2');
+      const percent = Math.floor(Math.random() * 100);
+      const hearts = percent >= 70 ? '💕💕' : percent >= 40 ? '💗' : '💔';
+      const embed = new EmbedBuilder()
+        .setTitle('💘 Shipping')
+        .setDescription(`${u1} x ${u2}\n**${percent}%** ${hearts}`)
+        .setColor(0xFF69B4);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('slots')
+      .setDescription('Slot machine'),
+    async execute(interaction) {
+      const symbols = ['🍒', '🍋', '🍊', '🍇', '💎', '🔔'];
+      const spin = () => symbols[Math.floor(Math.random() * symbols.length)];
+      const row = [spin(), spin(), spin()];
+      const win = row[0] === row[1] && row[1] === row[2];
+      const embed = new EmbedBuilder()
+        .setTitle('🎰 Slots')
+        .setDescription(row.join(' '))
+        .setDescription(`${row.join('  ')}\n\n${win ? '🎉 JACKPOT!' : 'Try again!'}`)
+        .setColor(win ? 0xFFD700 : 0x5865F2);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('trivia')
+      .setDescription('Random trivia'),
+    async execute(interaction) {
+      const trivia = [
+        { q: 'What planet is closest to the sun?', a: 'Mercury' },
+        { q: 'What is the largest ocean?', a: 'Pacific' },
+        { q: 'How many bones in human body?', a: '206' },
+      ];
+      const q = trivia[Math.floor(Math.random() * trivia.length)];
+      const embed = new EmbedBuilder()
+        .setTitle('❓ Trivia')
+        .setDescription(`**Q:** ${q.q}\n\n*A:* ||${q.a}||`)
+        .setColor(0x5865F2);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('wouldyourather')
+      .setDescription('Would you rather...'),
+    async execute(interaction) {
+      const questions = [
+        'Infinite money or infinite time?',
+        'Be invisible or read minds?',
+        'Fight horse duck or 100 duck horses?',
+      ];
+      const embed = new EmbedBuilder()
+        .setTitle('🤔 Would You Rather')
+        .setDescription(questions[Math.floor(Math.random() * questions.length)])
+        .setColor(0xFF6B6B);
+      await interaction.reply({ embeds: [embed] });
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('zalgo')
+      .setDescription('Zalgo text')
+      .addStringOption(o => o.setName('text').setDescription('Text').setRequired(true)),
+    async execute(interaction) {
+      const text = interaction.options.getString('text');
+      const zalgo = '͡°͜ʖ͡°';
+      let result = text;
+      for (const char of text) {
+        result += char + zalgo[Math.floor(Math.random() * zalgo.length)];
+      }
+      await interaction.reply(result.substring(0, 2000));
+    },
+  },
+  
+  {
+    data: new SlashCommandBuilder()
+      .setName('compliment')
+      .setDescription('Give a compliment')
+      .addUserOption(o => o.setName('user').setDescription('User')),
+    async execute(interaction) {
+      const user = interaction.options.getUser('user') || interaction.user;
+      const compliments = [
+        'You\'re amazing!', 'You\'re doing great!', 'You\'re awesome!',
+        'Keep it up!', 'You\'re a star!',
+      ];
+      await interaction.reply(`${user} ${compliments[Math.floor(Math.random() * compliments.length)]}`);
+    },
+  },
+];
+
+module.exports = funCommands;

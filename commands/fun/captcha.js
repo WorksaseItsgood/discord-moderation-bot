@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 // CAPTCHA verification code display
 module.exports = {
@@ -34,5 +34,3 @@ module.exports = {
     await interaction.reply({ embeds: [embed] });
   }
 };
-
-const PermissionFlagsBits = require('discord.js').PermissionFlagsBits;
