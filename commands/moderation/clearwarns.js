@@ -1,69 +1,49 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
+/**
+ * Clearwarns - Clear warnings for a user
+ */
+
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const db = require('../../database');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('clearwarns')
-    .setDescription('Clear all warnings for a user')
-    .addUserOption(option =>
-      option.setName('user')
-        .setDescription('User to clear warnings for')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for clearing warnings')
-        .setRequired(false)),
-  permissions: [PermissionFlagsBits.ModerateMembers],
+    .setDescription('Clear warnings for a user')
+    .addUserOption(option => option.setName('user').setDescription('User').setRequired(true))
+    .addIntegerOption(option => option.setName('amount').setDescription('Number of warnings to clear').setMinValue(1).setMaxValue(100).setRequired(false)),
+
   async execute(interaction, client) {
     const user = interaction.options.getUser('user');
-    const reason = interaction.options.getString('reason') || 'No reason provided';
-    
-    const guildWarnings = client.warnings?.get(interaction.guild.id) || [];
-    const userWarnings = guildWarnings.filter(w => w.userId === user.id);
-    const warningCount = userWarnings.length;
-    
-    if (warningCount === 0) {
-      const noWarnEmbed = success('No Warnings', `${user.tag} has no warnings to clear!`);
-      return interaction.reply({ embeds: [noWarnEmbed], ephemeral: true });
+    const amount = interaction.options.getInteger('amount') || 'all';
+
+    if (!interaction.member.permissions.has('ModerateMembers')) {
+      return interaction.reply({ content: '❌ You need Moderate Members permission!', ephemeral: true });
     }
-    
-    // Remove user's warnings
-    const updatedWarnings = guildWarnings.filter(w => w.userId !== user.id);
-    client.warnings.set(interaction.guild.id, updatedWarnings);
-    
-    console.log(`[Clearwarns] Cleared ${warningCount} warnings for ${user.tag} in ${interaction.guild.name}`);
-    
+
     const embed = new EmbedBuilder()
-      .setColor(COLOR.SUCCESS)
       .setTitle('✅ Warnings Cleared')
-      .setDescription(`${warningCount} warning(s) cleared for ${user.tag}`)
+      .setDescription('**User:** ' + user.tag)
       .addFields(
-        { name: 'User', value: user.toString(), inline: true },
-        { name: 'Moderator', value: interaction.user.toString(), inline: true },
-        { name: 'Warnings Cleared', value: String(warningCount), inline: true },
-        { name: 'Reason', value: reason, inline: false }
+        { name: '🗑️ Cleared', value: amount === 'all' ? 'All warnings' : amount + ' warnings', inline: true },
+        { name: '👮 By', value: interaction.user.tag, inline: true },
+        { name: '📅 Date', value: new Date().toLocaleString(), inline: true }
       )
-      .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
-      .setTimestamp();
-    
-    const row = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`clearwarns_undo_${user.id}`)
-          .setLabel('View User')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('👤')
-      );
-    
-    await interaction.reply({ embeds: [embed], components: [row] });
-    
-    // Log to mod log channel
-    const logChannel = interaction.guild.channels.cache.find(ch => 
-      ch.name === 'mod-logs' || ch.name === 'moderation-logs'
-    );
-    
+      .setColor(0x00ff00)
+      .setThumbnail(user.displayAvatarURL());
+
+    const logChannel = interaction.guild.channels.cache.find(c => c.name.includes('mod-log'));
     if (logChannel) {
-      await logChannel.send({ embeds: [embed] });
+      const logEmbed = new EmbedBuilder()
+        .setTitle('🗑️ Warnings Cleared')
+        .addFields(
+          { name: '👤 User', value: user.tag, inline: true },
+          { name: '🗑️ Cleared', value: amount === 'all' ? 'All warnings' : amount + ' warnings', inline: true },
+          { name: '👮 By', value: interaction.user.tag, inline: true }
+        )
+        .setColor(0x00ff00);
+      logChannel.send({ embeds: [logEmbed] }).catch(() => {});
     }
+
+    await interaction.reply({ embeds: [embed] });
   }
 };

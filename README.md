@@ -1,331 +1,122 @@
-# Discord Moderation Bot 🛡️
+# 🎮 Niotic - Ultimate Discord Moderation Bot
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Discord.js](https://img.shields.io/badge/Discord.js-14.x-blue.svg)](https://discord.js.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
+> Un bot Discord ultra-complet avec +400 commandes, système anti-raid, auto-mod, musique, économie, et plus !
 
-Multifunctional Discord bot with advanced anti-raid, economy, music, tickets, and more.
+![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord)
+![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript)
 
-[Français](#français) | [English](#english)
+## ✨ Features
 
----
+### 🛡️ Modération Avancée
+- **Anti-Raid Ultra** - Protection contre les raids avec CAPTCHA, scoring, auto-quarantine
+- **Auto-Mod** - Anti-spam, anti-scam, anti-liens, filtrage mots
+- **Sistema de Castigos** - Warns, mutes, kicks, bans avec logs détaillés
+- **Panels** - Panneaux interactifs avec boutons et menus dropdown
 
-## 🇬🇧 English
+### 🎵 Musique
+- Play, skip, pause, resume, stop
+- Queue management avec boutons
+- Lyrics, playlists, repeat, shuffle
+- Support Spotify, SoundCloud
 
-### Features
+### 💰 Économie
+- Work, crime, daily, weekly, monthly
+- Shop, buy, sell, inventory
+- Gambling, slots, roulette
+- Leaderboards
 
-#### 🛡️ Moderation
-- **Anti-Raid System**: Real-time protection against raids with configurable thresholds
-- **Auto-Mod**: Anti-spam, anti-invite, anti-scam, anti-swear, mention spam, caps lock
-- **Mute/Unmute**: Temporary and permanent mutes
-- **Ban/Unban**: Temporary and permanent bans with reason
-- **Kick**: Kick users with reason
-- **Warn/Warnings**: Warning system with history
-- **Lock/Unlock**: Channel locking
-- **Slowmode**: Channel slowmode control
-- **Role Management**: Add/remove roles
+### 🎮 Jeux
+- TicTacToe, Connect4, Hangman
+- Blackjack, HighLow, Dice
+- Fishing, Hunting, Mining
+- Trivia, Quiz
 
-#### 💰 Economy System
-- `/balance` - Check your balance
-- `/daily` - Claim daily rewards (24h cooldown)
-- `/weekly` - Claim weekly rewards (7d cooldown)
-- `/beg` - Beg for coins (2m cooldown)
-- `/gamble` - Gamble your coins
-- `/rob` - Rob another user (30% success)
-- `/pay` - Pay another user
-- `/rank` - Check your XP and rank
-- `/leaderboard` - Server leaderboard
+### 👥 Social
+- Marriage, divorce, adopt
+- Family tree, friends
+- Reputation, achievements
+- Profile, bio
 
-#### 🎵 Music System (DisTube)
-- `/play` - Play music
-- `/stop` - Stop music
-- `/skip` - Skip song
-- `/queue` - View queue
-- `/volume` - Set volume
+### 🔧 Utility
+- Reminders, timers, schedules
+- Translate, weather, qrcode
+- Polls, giveaways
+- Tickets, verification
 
-#### 🎫 Ticket System
-- `/ticket-create` - Create a ticket
-- `/ticket-close` - Close ticket
-- `/ticket-add` - Add user to ticket
-- `/ticket-remove` - Remove user from ticket
-- `/ticket-panel` - Create ticket panel
+### 🖼️ Image
+- Blur, brighten, darken
+- Deepfry, grayscale, sepia
+- Stonks, drake, meme generator
+- Captions
 
-#### ✅ Verification System
-- `/verify` - Verify with CAPTCHA
-
-#### 🎉 Giveaway System
-- `/giveaway-create` - Create giveaway
-- `/giveaway-end` - End giveaway
-- `/giveaway-reroll` - Reroll winner
-
-#### 💡 Suggestion System
-- `/suggest` - Submit suggestion
-- `/accept-suggest` - Accept suggestion
-- `/reject-suggest` - Reject suggestion
-
-#### 👋 Welcome/Leave System
-- Custom welcome messages
-- Auto-role on join
-- Member counter
-
-#### ⭐ Starboard
-- Auto-star messages
-
-#### 🔧 Utility Commands
-- `/server-info` - Server information
-- `/user-info` - User information
-- `/avatar` - User avatar
-- `/banner` - User banner
-- `/role-info` - Role information
-- `/channel-info` - Channel information
-- `/emojis` - Server emojis
-- `/invite-info` - Invite information
-- `/poll` - Create poll
-
-#### 🎮 Game Commands
-- `/8ball` - Magic 8ball
-- `/rps` - Rock Paper Scissors
-
-#### ℹ️ Info Commands
-- `/ping` - Bot ping
-- `/bot-stats` - Bot statistics
-
-### Database
-
-Uses SQLite (`better-sqlite3`) for:
-- Economy (balance, XP, level)
-- Warnings history
-- Ticket data
-- Giveaway data
-- Suggestions
-- Starboard
-- Cooldowns
-- Per-guild settings
-
-### Installation
+## 🚀 Installation
 
 ```bash
-# Clone the repository
+# Clone le repo
 git clone https://github.com/WorksaseItsgood/discord-moderation-bot.git
-
-# Install dependencies
 cd discord-moderation-bot
+
+# Installe les dépendances
 npm install
 
-# Configure the bot
+# Configure le fichier .env
 cp .env.example .env
-# Edit .env with your bot token
+# Édite .env et ajoute ton token bot Discord
 
-# Start the bot
-npm start
+# Lance le bot
+node index.js
 ```
 
-### Configuration (.env)
+## ⚙️ Configuration
+
+Crée un fichier `.env` avec :
 
 ```env
-DISCORD_TOKEN=your_bot_token
-CLIENT_ID=your_client_id
-OWNERS=your_user_id
-DEBUG=false
-GLOBAL_COMMANDS=true
-STATUS= moderation help
-PREFIX=!
+TOKEN=ton_token_bot_discord
+CLIENT_ID=ton_client_id
+GUILD_ID=ton_guild_id (optionnel)
 ```
 
-### Slash Commands
+## 📋 Commandes
 
-Register commands globally:
-```bash
-npm run deploy
-```
+Le bot possède **400+ commandes slash** dans les catégories :
 
-### Anti-Raid Configuration
+| Catégorie | Nbre Commands |
+|-----------|---------------|
+| 🛡️ Modération | 50+ |
+| 🎵 Musique | 20+ |
+| 💰 Économie | 40+ |
+| 🎮 Jeux | 50+ |
+| 🔧 Utility | 80+ |
+| 🎉 Fun | 100+ |
+| 👥 Social | 40+ |
+| 🖼️ Image | 30+ |
+| 📊 Stats | 20+ |
 
-The anti-raid system can be configured per-guild using config files in `configs/`:
+## 🛠️ Systems
 
-```json
-{
-  "raid": {
-    "enabled": true,
-    "maxJoinsPerSecond": 5,
-    "minAccountAge": 7,
-    "requireAvatar": true,
-    "actions": {
-      "low": "warn",
-      "medium": "mute", 
-      "high": "kick",
-      "critical": "ban"
-    }
-  }
-}
-```
+- **ultraAntiRaid.js** - Anti-raid avec CAPTCHA et scoring
+- **autoMod.js** - Auto-modération intelligente
+- **logger.js** - Logs de toutes les actions
+- **music.js** - Système musical complet
+- **database.js** - Base de données JSON
+- **welcome.js** - Messages de bienvenue
+- **starboard.js** - Système de starboard
 
-### Support
+## 🎨 Beautifulls Embeds
 
-For issues and feature requests, please open an issue on GitHub.
+Toutes les commandes utilisent des embeds stylés avec :
+- Couleurs thématiques
+- Emojis
+- Footers avec timestamp
+- Champs inline
+- Boutons interactifs
+
+## 📝 License
+
+MIT License
 
 ---
 
-## 🇫🇷 Français
-
-### Fonctionnalités
-
-#### 🛡️ Modération
-- **Système Anti-Raid**: Protection en temps réel contre les raids
-- **Auto-Mod**: Anti-spam, anti-invite, anti-arnaque, anti-insulte
-- **Mute/Unmute**: Rappels temporaires et permanents
-- **Ban/Unban**: Bannissements temporaires et permanents
-- **Kick**: Expulser des utilisateurs
-- **Warn/Warnings**: Système d'avertissements
-- **Lock/Unlock**: Verrouillage de salon
-- **Slowmode**: Contrôle du slowmode
-- **Gestion des rôles**: Ajouter/retirer des rôles
-
-#### 💰 Système Économique
-- `/balance` - Vérifier votre solde
-- `/daily` - Récompense quotidienne (24h)
-- `/weekly` - Récompense hebdomadaire (7j)
-- `/beg` - Mendier des pièces (2min)
-- `/gamble` - Jouer vos pièces
-- `/rob` - Voler un autre utilisateur
-- `/pay` - Payer un autre utilisateur
-- `/rank` - Voir votre rang XP
-- `/leaderboard` - Classement du serveur
-
-#### 🎵 Système Musical (DisTube)
-- `/play` - Jouer de la musique
-- `/stop` - Arrêter la musique
-- `/skip` - Passer la chanson
-- `/queue` - Voir la file d'attente
-- `/volume` - Régler le volume
-
-#### 🎫 Système de Tickets
-- `/ticket-create` - Créer un ticket
-- `/ticket-close` - Fermer un ticket
-- `/ticket-add` - Ajouter un utilisateur
-- `/ticket-remove` - Retirer un utilisateur
-- `/ticket-panel` - Créer un panneau de tickets
-
-#### ✅ Système de Vérification
-- `/verify` - Vérifier avec CAPTCHA
-
-#### 🎉 Système de Giveaway
-- `/giveaway-create` - Créer un giveaway
-- `/giveaway-end` - Terminer un giveaway
-- `/giveaway-reroll` - Retirer le gagnant
-
-#### 💡 Système de Suggestions
-- `/suggest` - Soumettre une suggestion
-- `/accept-suggest` - Accepter une suggestion
-- `/reject-suggest` - Rejeter une suggestion
-
-#### 👋 Système de Bienvenue
-- Messages de bienvenue personnalisés
-- Rôle automatique à l'arrivée
-- Compteur de membres
-
-#### ⭐ Starboard
-- Messages vedettes automatiques
-
-#### 🔧 Commandes Utilitaires
-- `/server-info` - Info serveur
-- `/user-info` - Info utilisateur
-- `/avatar` - Avatar utilisateur
-- `/banner` - Bannière utilisateur
-- `/role-info` - Info rôle
-- `/channel-info` - Info salon
-- `/emojis` - Emojis du serveur
-- `/invite-info` - Info invitation
-- `/poll` - Créer un sondage
-
-#### 🎮 Commandes de Jeu
-- `/8ball` - Boule magique 8
-- `/rps` - Pierre Papier Ciseaux
-
-#### ℹ️ Commandes d'Info
-- `/ping` - Ping du bot
-- `/bot-stats` - Statistiques du bot
-
-### Base de données
-
-SQLite (`better-sqlite3`) pour:
-- Économie (solde, XP, niveau)
-- Historique des avertissements
-- Données des tickets
-- Données des giveaways
-- Suggestions
-- Starboard
-- Cooldowns
-- Paramètres par serveur
-
-### Installation
-
-```bash
-# Cloner le dépôt
-git clone https://github.com/WorksaseItsgood/discord-moderation-bot.git
-
-# Installer les dépendances
-cd discord-moderation-bot
-npm install
-
-# Configurer le bot
-cp .env.example .env
-# Modifier .env avec votre token
-
-# Démarrer le bot
-npm start
-```
-
-### Configuration (.env)
-
-```env
-DISCORD_TOKEN=votre_token_bot
-CLIENT_ID=votre_client_id
-OWNERS=votre_user_id
-DEBUG=false
-GLOBAL_COMMANDS=true
-STATUS= moderation help
-PREFIX=!
-```
-
-### Commandes slash
-
-Enregistrer les commandes globalement:
-```bash
-npm run deploy
-```
-
-### Configuration Anti-Raid
-
-Le système anti-raid peut être configuré par serveur dans `configs/`:
-
-```json
-{
-  "raid": {
-    "enabled": true,
-    "maxJoinsPerSecond": 5,
-    "minAccountAge": 7,
-    "requireAvatar": true,
-    "actions": {
-      "low": "warn",
-      "medium": "mute",
-      "high": "kick",
-      "critical": "ban"
-    }
-  }
-}
-```
-
-### Support
-
-Pour les problèmes et demandes de fonctionnalité, ouvrez une issue sur GitHub.
-
----
-
-## License / Licence
-
-MIT License - Voir [LICENSE](LICENSE) pour plus de détails.
-
----
-
-⭐ Star this repository if you find it useful!
+Fait avec ❤️ pour la communauté Discord
