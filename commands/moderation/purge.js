@@ -1,77 +1,42 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
+/**
+ * Purge - Delete messages
+ */
+
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('purge')
-    .setDescription('Delete multiple messages')
-    .addIntegerOption(option =>
-      option.setName('amount')
-        .setDescription('Number of messages to delete (1-100)')
-        .setMinValue(1)
-        .setMaxValue(100)
-        .setRequired(true))
-    .addUserOption(option =>
-      option.setName('user')
-        .setDescription('Only delete messages from this user')
-        .setRequired(false))
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for purging')
-        .setRequired(false)),
-  permissions: [PermissionFlagsBits.ManageMessages],
+    .setDescription('Delete messages')
+    .addIntegerOption(option => option.setName('amount').setDescription('Number of messages').setMinValue(1).setMaxValue(100).setRequired(true))
+    .addStringOption(option => option.setName('reason').setDescription('Reason').setRequired(false)),
+
   async execute(interaction, client) {
     const amount = interaction.options.getInteger('amount');
-    const user = interaction.options.getUser('user');
-    const reason = interaction.options.getString('reason') || 'No reason provided';
-    
-    // Fetch messages
-    const messages = await interaction.channel.messages.fetch({ limit: amount });
-    
-    // Filter by user if specified
-    let filteredMessages = messages;
-    if (user) {
-      filteredMessages = messages.filter(m => m.author.id === user.id);
+    const reason = interaction.options.getString('reason') || 'Message purge';
+
+    if (!interaction.member.permissions.has('ManageMessages')) {
+      return interaction.reply({ content: '❌ You need Manage Messages permission!', ephemeral: true });
     }
-    
-    // Limit to 100
-    const toDelete = filteredMessages.slice(0, 100);
-    
-    // Delete messages
+
+    const channel = interaction.channel;
+    const messages = await channel.messages.fetch({ limit: amount });
+
     try {
-      await interaction.channel.bulkDelete(toDelete, true);
-      
-      console.log(`[Purge] Deleted ${toDelete.size} messages in ${interaction.channel.name}`);
-      
+      await channel.bulkDelete(messages);
+
       const embed = new EmbedBuilder()
-        .setColor(COLOR.ERROR)
-        .setTitle('🗑️ Messages Purged')
-        .setDescription(`Successfully deleted ${toDelete.size} message(s)`)
+        .setTitle('🗑️ Messages Deleted')
         .addFields(
-          { name: 'Channel', value: interaction.channel.toString(), inline: true },
-          { name: 'Moderator', value: interaction.user.toString(), inline: true },
-          { name: 'Reason', value: reason, inline: false }
+          { name: '🗑️ Deleted', value: amount + ' messages', inline: true },
+          { name: '📝 Reason', value: reason, inline: true },
+          { name: '👮 By', value: interaction.user.tag, inline: true }
         )
-        .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
-        .setTimestamp();
-      
-      if (user) {
-        embed.addFields({ name: 'Filtered', value: `Only messages from ${user.tag}`, inline: false });
-      }
-      
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      
-      // Log to mod log channel
-      const logChannel = interaction.guild.channels.cache.find(ch => 
-        ch.name === 'mod-logs' || ch.name === 'moderation-logs'
-      );
-      
-      if (logChannel) {
-        await logChannel.send({ embeds: [embed] });
-      }
-    } catch (err) {
-      const errEmbedResponse = errorEmbed('Purge Failed', err.message);
-      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
+        .setColor(0x00ff00);
+
+      await interaction.reply({ embeds: [embed] });
+    } catch (e) {
+      await interaction.reply({ content: '❌ Failed: ' + e.message, ephemeral: true });
     }
   }
 };
