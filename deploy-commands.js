@@ -72,16 +72,20 @@ const rest = new REST({ version: '10' }).setToken(token);
     }
     console.log('[Deploy] All deleted');
     
-    // Deploy all commands in batches
+    // Deploy all commands in batches with delays
     const batchSize = 50;
     for (let i = 0; i < commands.length; i += batchSize) {
       const batch = commands.slice(i, i + batchSize);
-      console.log(`[Deploy] Deploying ${i + 1}-${i + batch.length}...`);
+      console.log(`[Deploy] Deploying ${i + 1}-${Math.min(i + batchSize, commands.length)}...`);
       const data = await rest.put(
         Routes.applicationCommands(clientId),
         { body: batch }
       );
       console.log('[Deploy] Success:', data.length);
+      if (i + batchSize < commands.length) {
+        console.log('[Deploy] Waiting for rate limit...');
+        await new Promise(r => setTimeout(r, 2000));
+      }
     }
     console.log('[Deploy] DONE!');
   } catch (e) {
