@@ -3,28 +3,24 @@ const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// Configuration
 const config = require('./config');
 const { clientId, token } = config;
 
-// Check for required environment variables
-if (!clientId) {
-  console.error('[Error] CLIENT_ID not set in environment variables!');
-  process.exit(1);
-}
-
-if (!token) {
-  console.error('[Error] DISCORD_TOKEN not set in environment variables!');
+if (!clientId || !token) {
+  console.error('[Error] Missing CLIENT_ID or TOKEN');
   process.exit(1);
 }
 
 // Collect all commands
 const commands = [];
+const commandNames = new Set();
 const commandFolders = [
   'moderation', 'config', 'info', 'utility', 'fun', 'game',
   'economy', 'music', 'tickets', 'verification',
   'giveaway', 'suggestion', 'welcome', 'starboard'
 ];
+
+console.log('[Deploy] Collecting commands...\n');
 
 for (const folder of commandFolders) {
   const commandPath = path.join(__dirname, 'commands', folder);
@@ -32,60 +28,59 @@ for (const folder of commandFolders) {
   
   const files = fs.readdirSync(commandPath).filter(file => file.endsWith('.js'));
   for (const file of files) {
-    const command = require(path.join(commandPath, file));
-    commands.push(command.data.toJSON());
-    console.log(`[Command] Queued: ${command.data.name}`);
+    try {
+      const fullPath = path.join(commandPath, file);
+      const command = require(fullPath);
+      
+      if (!command.data || !command.data.name) continue;
+      if (commandNames.has(command.data.name)) continue;
+      
+      const json = command.data.toJSON();
+      
+      // Truncate long descriptions
+      if (json.description && json.description.length > 100) {
+        json.description = json.description.substring(0, 97) + '...';
+      }
+      
+      commands.push(json);
+      commandNames.add(command.data.name);
+      console.log(`[Command] ${command.data.name}`);
+    } catch (e) {
+      console.log(`[Error] ${file}: ${e.message}`);
+    }
   }
 }
 
-// Deploy commands
+console.log(`\n[Deploy] Total: ${commands.length} commands`);
+
+// Deploy one by one
 const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
   try {
-    console.log(`[Deploy] Started refreshing ${commands.length} application commands.`);
+    console.log('\n[Deploy] Getting existing commands...');
+    const existing = await rest.get(Routes.applicationCommands(clientId));
+    console.log('[Deploy] Existing:', existing.length);
     
-    // Deploy globally or per guild
-    if (config.registerCommandsGlobally) {
-      console.log('[Deploy] Registering commands globally...');
-      
-      const data = await rest.put(
-        Routes.applicationCommands(clientId),
-        { body: commands }
-      );
-      
-      console.log(`[Deploy] Successfully reloaded ${data.length} global application commands.`);
-    } else {
-      // Get all guilds and register per guild
-      const { Client, GatewayIntentBits } = require('discord.js');
-      const client = new Client({
-        intents: [GatewayIntentBits.Guilds]
-      });
-      
-      await client.login(token);
-      await client.ready;
-      
-      console.log(`[Deploy] Registering commands per guild (${client.guilds.cache.size} guilds)...`);
-      
-      for (const guild of client.guilds.cache.values()) {
-        try {
-          await rest.put(
-            Routes.applicationGuildCommands(clientId, guild.id),
-            { body: commands }
-          );
-          console.log(`[Deploy] Registered commands in guild: ${guild.name}`);
-        } catch (error) {
-          console.error(`[Deploy] Failed to register commands in ${guild.name}:`, error.message);
-        }
-      }
-      
-      await client.destroy();
+    // Delete ALL existing first
+    console.log('[Deploy] Deleting existing...');
+    for (const cmd of existing) {
+      try {
+        await rest.delete(Routes.applicationCommand(clientId, cmd.id));
+      } catch(e) {}
     }
+    console.log('[Deploy] All deleted');
     
-    console.log('[Deploy] Done!');
-    process.exit(0);
-  } catch (error) {
-    console.error('[Deploy] Error:', error);
+    // Deploy first batch only (50)
+    console.log('[Deploy] Deploying first 50...');
+    const data = await rest.put(
+      Routes.applicationCommands(clientId),
+      { body: commands.slice(0, 50) }
+    );
+    console.log('[Deploy] Success:', data.length);
+    console.log('[Deploy] DONE!');
+  } catch (e) {
+    console.error('[Deploy] Error:', e.message);
     process.exit(1);
   }
 })();
