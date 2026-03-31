@@ -25,8 +25,7 @@ module.exports = {
     .addBooleanOption(option =>
       option.setName('dm')
         .setDescription('DM the user about the ban')
-        .setRequired(false)
-        .setDefaultValue(true)),
+        .setRequired(false)),
   
   permissions: [PermissionFlagsBits.BanMembers],
   

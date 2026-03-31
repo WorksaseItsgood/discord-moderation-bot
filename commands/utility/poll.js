@@ -20,8 +20,7 @@ module.exports = {
     .addBooleanOption(option =>
       option.setName('multiple')
         .setDescription('Allow multiple votes')
-        .setRequired(false)
-        .setDefaultValue(false)),
+        .setRequired(false)),
   
   async execute(interaction, client) {
     const question = interaction.options.getString('question');

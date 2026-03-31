@@ -21,8 +21,7 @@ module.exports = {
     .addBooleanOption(option =>
       option.setName('dm')
         .setDescription('DM the user about the warning')
-        .setRequired(false)
-        .setDefaultValue(true)),
+        .setRequired(false)),
   
   permissions: [PermissionFlagsBits.ModerateMembers],
   
