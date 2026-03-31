@@ -11,9 +11,11 @@ module.exports = {
     .addStringOption(option =>
       option.setName('filter')
         .setDescription('Filter members')
-        .addStringChoice('all', 'all')
-        .addStringChoice('no-role', 'no-role')
-        .addStringChoice('has-role', 'has-role')),
+        .setChoices(
+          { name: 'all', value: 'all' },
+          { name: 'no-role', value: 'no-role' },
+          { name: 'has-role', value: 'has-role' }
+        )),
   async execute(interaction) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
       return interaction.reply({ content: '❌ You need Manage Roles permission!', ephemeral: true });

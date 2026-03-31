@@ -6,10 +6,12 @@ module.exports = {
     .setDescription('Kick all members from the server (with optional filter)')
     .addStringOption(option =>
       option.setName('filter')
-        .setDescription('Filter: joined before, joined after, or no filter')
-        .addString Choice('before', 'before')
-        .addStringChoice('after', 'after')
-        .addStringChoice('no-filter', 'no-filter'))
+        .setDescription('Filter type')
+        .setChoices(
+          { name: 'joined-before', value: 'before' },
+          { name: 'joined-after', value: 'after' },
+          { name: 'no-filter', value: 'no-filter' }
+        ))
     .addStringOption(option =>
       option.setName('date')
         .setDescription('Date for filter (YYYY-MM-DD)'))

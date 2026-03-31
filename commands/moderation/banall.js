@@ -7,17 +7,16 @@ module.exports = {
     .addStringOption(option =>
       option.setName('filter')
         .setDescription('Filter type')
-        .addStringChoice('joined-before', 'before')
-        .addStringChoice('joined-after', 'after')
-        .addStringChoice('no-filter', 'no-filter'))
+        .setChoices(
+          { name: 'joined-before', value: 'before' },
+          { name: 'joined-after', value: 'after' },
+          { name: 'no-filter', value: 'no-filter' }
+        ))
     .addStringOption(option =>
       option.setName('date')
         .setDescription('Date for filter (YYYY-MM-DD)'))
     .addIntegerOption(option =>
       option.setName('days')
-        .setDescription('Ban members who joined more than X days ago'))
-    .addIntegerOption(option =>
-      option.setName('days-ago')
         .setDescription('Ban members who joined more than X days ago')),
   async execute(interaction) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
@@ -26,7 +25,7 @@ module.exports = {
 
     const filter = interaction.options.getString('filter') || 'no-filter';
     const date = interaction.options.getString('date');
-    const days = interaction.options.getInteger('days') || interaction.options.getInteger('days-ago');
+    const days = interaction.options.getInteger('days');
     const guild = interaction.guild;
     const members = await guild.members.fetch();
 

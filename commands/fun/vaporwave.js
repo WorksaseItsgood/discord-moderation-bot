@@ -7,7 +7,7 @@ const charmaps = {
   bubble: 'ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ',
   small: 'ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ',
   gothic: '𝒜𝐵𝒞𝒟𝐸𝒢𝒣𝒤𝒥𝒦𝐿𝑀𝒩𝒪𝒫𝑸𝑅𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵',
-  cursive: '𝒶𝒷𝒸𝒹𝒺𝒻𝒼𝒽𝒾𝒿�𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏'
+  cursive: '𝒶𝒷𝒸𝒹𝒺𝒻𝒼𝒽𝒾𝒿𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏'
 };
 
 module.exports = {
@@ -20,13 +20,7 @@ module.exports = {
         .setRequired(true))
     .addStringOption(option =>
       option.setName('style')
-        .setDescription('Vaporwave style')
-        .addStringChoice('lowercase', 'lowercase')
-        .addStringChoice('fullwidth', 'fullwidth')
-        .addStringChoice('bubble', 'bubble')
-        .addStringChoice('small', 'small')
-        .addStringChoice('gothic', 'gothic')
-        .addStringChoice('cursive', 'cursive')),
+        .setDescription('Vaporwave style')),
   async execute(interaction) {
     const text = interaction.options.getString('text');
     const style = interaction.options.getString('style') || 'fullwidth';

@@ -20,7 +20,7 @@ const things = [
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('beLikeBill')
+    .setName('belikebill')
     .setDescription('Generate a Bill meme')
     .addStringOption(option =>
       option.setName('thing')
