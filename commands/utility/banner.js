@@ -1,8 +1,4 @@
-/**
- * Banner Command - Get user banner
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -10,28 +6,22 @@ module.exports = {
     .setDescription('Get user banner')
     .addUserOption(option =>
       option.setName('user')
-        .setDescription('User to get banner (optional)')
-    ),
-  
-  async execute(interaction, client) {
-    const user = interaction.options.getUser('user') || interaction.user;
+        .setDescription('User to get banner of')
+        .setRequired(true)),
+  async execute(interaction) {
+    const user = interaction.options.getUser('user');
+    const banner = user.bannerURL();
     
-    // Fetch user to get banner
-    const fetchedUser = await client.users.fetch(user.id).catch(() => null);
-    
-    if (!fetchedUser || !fetchedUser.banner) {
-      return interaction.reply({ 
-        content: `${user.username} doesn't have a banner!`,
-        ephemeral: true 
-      });
+    if (!banner) {
+      return interaction.reply({ content: `${user} has no banner!`, ephemeral: true });
     }
     
-    const embed = new EmbedBuilder()
-      .setTitle(`${user.username}'s Banner`)
-      .setColor(0x0099ff)
-      .setImage(fetchedUser.bannerURL({ size: 512 }))
-      .setDescription(`[Download](${fetchedUser.bannerURL({ size: 4096 })})`);
-    
+    const embed = {
+      title: `🏴 ${user.tag} Banner`,
+      image: { url: banner },
+      color: 0x5865F2,
+    };
+
     await interaction.reply({ embeds: [embed] });
-  }
+  },
 };
