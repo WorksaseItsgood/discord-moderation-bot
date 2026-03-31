@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Purge command - delete multiple messages
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('purge')
@@ -44,15 +44,21 @@ module.exports = {
       console.log(`[Purge] Deleted ${toDelete.size} messages in ${interaction.channel.name}`);
       
       const embed = new EmbedBuilder()
+        .setColor(COLOR.ERROR)
         .setTitle('🗑️ Messages Purged')
-        .setColor(0x00ff00)
+        .setDescription(`Successfully deleted ${toDelete.size} message(s)`)
         .addFields(
-          { name: 'Deleted', value: String(toDelete.size), inline: true },
           { name: 'Channel', value: interaction.channel.toString(), inline: true },
-          { name: 'Reason', value: reason, inline: true }
-        );
+          { name: 'Moderator', value: interaction.user.toString(), inline: true },
+          { name: 'Reason', value: reason, inline: false }
+        )
+        .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+        .setTimestamp();
       
-      //ephemeral reply to hide from others
+      if (user) {
+        embed.addFields({ name: 'Filtered', value: `Only messages from ${user.tag}`, inline: false });
+      }
+      
       await interaction.reply({ embeds: [embed], ephemeral: true });
       
       // Log to mod log channel
@@ -63,11 +69,9 @@ module.exports = {
       if (logChannel) {
         await logChannel.send({ embeds: [embed] });
       }
-    } catch (error) {
-      return interaction.reply({
-        content: `❌ Error purging messages: ${error.message}`,
-        ephemeral: true
-      });
+    } catch (err) {
+      const errEmbedResponse = errorEmbed('Purge Failed', err.message);
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
   }
 };

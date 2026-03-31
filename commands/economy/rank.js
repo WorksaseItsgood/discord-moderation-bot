@@ -1,50 +1,118 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+/**
+ * Rank Command - Check your rank/XP with progress bar
+ */
 
-// Rank command - show user rank and XP card
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { rank, COLORS } = require('../../utils/embedTemplates');
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('rank')
-    .setDescription('View your rank card')
+    .setDescription('Check your rank and XP')
     .addUserOption(option =>
       option.setName('user')
-        .setDescription('User to check')
+        .setDescription('User to check rank for')
         .setRequired(false)),
-  permissions: [],
+  
   async execute(interaction, client) {
     const user = interaction.options.getUser('user') || interaction.user;
-    const guildId = interaction.guild.id;
-    const db = require('../database');
+    const botAvatar = client.user?.displayAvatarURL() || 'https://cdn.discordapp.com/embed/avatars/0.png';
     
-    const userData = db.getOrCreateUser(user.id, guildId);
+    // Get or initialize economy data
+    if (!client.economy) {
+      client.economy = new Map();
+    }
     
-    // Calculate level info
-    const level = userData.level;
-    const currentLevelXP = Math.pow(level - 1, 2) * 100;
-    const nextLevelXP = Math.pow(level, 2) * 100;
-    const xpProgress = userData.xp - currentLevelXP;
-    const xpNeeded = nextLevelXP - currentLevelXP;
-    const progressPercent = Math.min(100, Math.floor((xpProgress / xpNeeded) * 100));
+    let userData = client.economy.get(`${interaction.guild.id}-${user.id}`);
     
-    // Get rank in server (by XP)
-    const allUsers = db.db.prepare('SELECT user_id FROM users WHERE guild_id = ? ORDER BY xp DESC').all(guildId);
-    const rank = allUsers.findIndex(u => u.user_id === user.id) + 1;
+    if (!userData) {
+      userData = {
+        wallet: 100,
+        bank: 0,
+        totalxp: 0,
+        level: 1,
+        daily: 0,
+        weekly: 0,
+        work: 0
+      };
+      // Don't save yet - only save if they have activity
+    }
     
-    // Create rank card embed
-    const progressBar = '█'.repeat(Math.floor(progressPercent / 10)) + '░'.repeat(10 - Math.floor(progressPercent / 10));
+    const { totalxp, level, wallet, bank } = userData;
+    const balance = (wallet || 0) + (bank || 0);
     
+    // Calculate XP needed for next level
+    const xpForLevel = level => level * 100;
+    const currentLevelXP = xpForLevel(level);
+    const nextLevelXP = xpForLevel(level + 1);
+    const xpForNextLevel = nextLevelXP - currentLevelXP;
+    const currentLevelProgress = totalxp - currentLevelXP;
+    
+    // Calculate rank
+    const entries = Array.from(client.economy.entries())
+      .filter(([key]) => key.startsWith(interaction.guild.id))
+      .map(([key, data]) => ({
+        userId: key.replace(`${interaction.guild.id}-`, ''),
+        totalxp: data.totalxp || 0
+      }))
+      .sort((a, b) => b.totalxp - a.totalxp);
+    
+    const userRank = entries.findIndex(e => e.totalxp > totalxp) + 1 || entries.length || 'N/A';
+    
+    // Progress bar
+    const progress = Math.min(Math.round((currentLevelProgress / xpForNextLevel) * 10), 10);
+    const progressBar = '█'.repeat(progress) + '░'.repeat(Math.max(0, 10 - progress));
+    
+    // Create beautiful rank embed
     const embed = new EmbedBuilder()
-      .setTitle(`🏆 ${user.username}'s Rank Card`)
-      .setColor(0x00ff00)
+      .setColor(COLORS.secondary)
+      .setAuthor({
+        name: `🏆 ${user.username}'s Rank`,
+        iconURL: botAvatar
+      })
+      .setTitle(`${userRank === 1 ? '🥇' : userRank === 2 ? '🥈' : userRank === 3 ? '🥉' : '🔹'} Rank #${userRank}`)
+      .setDescription(`**${user.username}** is level **${level}**`)
       .setThumbnail(user.displayAvatarURL())
+      .setFooter({
+        text: `CrowBot • ${totalxp} XP total`,
+        iconURL: botAvatar
+      })
+      .setTimestamp()
       .addFields(
-        { name: 'Rank', value: `#${rank} of ${allUsers.length}`, inline: true },
-        { name: 'Level', value: `${level}`, inline: true },
-        { name: 'XP', value: `${userData.xp} / ${nextLevelXP}`, inline: true },
-        { name: 'Coins', value: `${userData.coins} 🪙`, inline: true },
-        { name: 'Daily Streak', value: `${userData.streak} days 🔥`, inline: true }
-      )
-      .setDescription(`\n📊 Progress: [${progressBar}] ${progressPercent}%\n${xpProgress} XP / ${xpNeeded} XP to Level ${level + 1}`);
+        { 
+          name: '⭐ XP Progress', 
+          value: `\`${progressBar}\`\n${currentLevelProgress}/${xpForNextLevel} XP to Level ${level + 1}`, 
+          inline: false 
+        },
+        { 
+          name: '📊 Statistics', 
+          value: `**Level:** ${level}\n**Total XP:** ${totalxp.toLocaleString()}\n**Server Rank:** #${userRank}`, 
+          inline: true 
+        },
+        { 
+          name: '💰 Economy', 
+          value: `**Balance:** $${balance.toLocaleString()}\n**Daily:** ${userData.daily ? '✅ Claimed' : '❌ Available'}\n**Work:** ${userData.work ? '✅ Done' : '❌ Available'}`, 
+          inline: true 
+        }
+      );
     
-    await interaction.reply({ embeds: [embed] });
+    // Action buttons
+    const buttonRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('rank-daily')
+          .setLabel('📅 Daily')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('rank-work')
+          .setLabel('💼 Work')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('rank-leaderboard')
+          .setLabel('🏆 Leaderboard')
+          .setStyle(ButtonStyle.Secondary)
+      );
+    
+    await interaction.reply({ embeds: [embed], components: [buttonRow] });
   }
 };

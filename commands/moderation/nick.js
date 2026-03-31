@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Nick command - change nickname
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('nick')
@@ -20,10 +20,12 @@ module.exports = {
     const member = interaction.guild.members.cache.get(user.id);
     
     if (!member) {
-      return interaction.reply({ content: '❌ User not found in this server!', ephemeral: true });
+      const errEmbedResponse = errorEmbed('User Not Found', 'User not found in this server!');
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
     
     try {
+      const oldNickname = member.nickname || user.username;
       if (nickname === 'remove' || nickname === 'none' || nickname === '') {
         await member.setNickname(null, `Nickname reset by ${interaction.user.tag}`);
       } else {
@@ -31,16 +33,30 @@ module.exports = {
       }
       
       const embed = new EmbedBuilder()
+        .setColor(COLOR.SUCCESS)
         .setTitle('✅ Nickname Changed')
-        .setColor(0x00ff00)
+        .setDescription(`${user.tag}'s nickname has been updated`)
         .addFields(
-          { name: 'User', value: `${user}`, inline: true },
+          { name: 'User', value: user.toString(), inline: true },
+          { name: 'Old Nickname', value: oldNickname, inline: true },
           { name: 'New Nickname', value: nickname === 'remove' ? '*Removed*' : nickname, inline: true }
+        )
+        .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+        .setTimestamp();
+      
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`nick_reset_${user.id}`)
+            .setLabel('Reset')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('↩️')
         );
       
-      await interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      await interaction.reply({ content: `❌ Error changing nickname: ${error.message}`, ephemeral: true });
+      await interaction.reply({ embeds: [embed], components: [row] });
+    } catch (err) {
+      const errEmbedResponse = errorEmbed('Nickname Failed', err.message);
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
   }
 };

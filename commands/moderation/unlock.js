@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Unlock command - unlock a channel to allow users to send messages
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('unlock')
@@ -36,14 +36,27 @@ module.exports = {
       console.log(`[Unlock] ${channel.name} unlocked in ${interaction.guild.name}`);
       
       const embed = new EmbedBuilder()
+        .setColor(COLOR.SUCCESS)
         .setTitle('🔓 Channel Unlocked')
-        .setColor(0x00ff00)
+        .setDescription(`${channel} has been unlocked`)
         .addFields(
           { name: 'Channel', value: channel.toString(), inline: true },
-          { name: 'Reason', value: reason, inline: true }
+          { name: 'Moderator', value: interaction.user.toString(), inline: true },
+          { name: 'Reason', value: reason, inline: false }
+        )
+        .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+        .setTimestamp();
+      
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`unlock_relock_${channel.id}`)
+            .setLabel('Re-lock')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔒')
         );
       
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({ embeds: [embed], components: [row] });
       
       // Log to mod log channel
       const logChannel = interaction.guild.channels.cache.find(ch => 
@@ -53,11 +66,9 @@ module.exports = {
       if (logChannel && logChannel.id !== channel.id) {
         await logChannel.send({ embeds: [embed] });
       }
-    } catch (error) {
-      return interaction.reply({
-        content: `❌ Error unlocking channel: ${error.message}`,
-        ephemeral: true
-      });
+    } catch (err) {
+      const errEmbedResponse = errorEmbed('Unlock Failed', err.message);
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
   }
 };

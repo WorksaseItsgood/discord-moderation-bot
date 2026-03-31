@@ -41,6 +41,7 @@ const commandFolders = [
   'config',
   'info',
   'economy',
+  'fun',
   'music',
   'tickets',
   'verification',

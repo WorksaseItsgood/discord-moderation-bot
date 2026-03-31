@@ -1,37 +1,84 @@
-const { EmbedBuilder } = require('discord.js');
-const { defaultConfig } = require('../config');
-
 /**
- * Guild Member Add Event
- * Logs and handles new member joins
+ * Welcome Event - Welcome new members with beautiful embed
  */
+
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { welcome, COLORS } = require('../utils/embedTemplates');
+const { confirmButton } = require('../utils/buttonComponents');
+
 module.exports = {
   name: 'guildMemberAdd',
-  once: false,
+  
   async execute(member, client) {
-    const config = defaultConfig;
     const guild = member.guild;
+    const botAvatar = client.user?.displayAvatarURL() || 'https://cdn.discordapp.com/embed/avatars/0.png';
     
-    // Log member join
-    if (config.logging?.enabled && config.logging?.members) {
-      const logChannel = guild.channels.cache.get(config.logging.members);
-      if (logChannel) {
-        const accountAge = Math.floor((Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60 * 24));
-        
-        const embed = new EmbedBuilder()
-          .setTitle('👤 Member Joined')
-          .setColor(0x00ff00)
-          .setTimestamp()
-          .addFields(
-            { name: 'User', value: `${member} (${member.user.id})`, inline: true },
-            { name: 'Account Age', value: `${accountAge} days`, inline: true },
-            { name: 'Bot', value: member.user.bot ? '🤖 Yes' : '👤 No', inline: true }
-          );
-        
-        await logChannel.send({ embeds: [embed] }).catch(() => {});
-      }
+    // Get welcome channel
+    const welcomeChannel = guild.channels.cache.find(ch => 
+      ch.name === 'welcome' || ch.name === 'welcomes' || ch.name === 'greeting'
+    );
+    
+    if (!welcomeChannel) return;
+    
+    // Get member count
+    const memberCount = guild.members.cache.size;
+    
+    // Get welcome settings (from database if available)
+    const welcomeSettings = client.welcomeSettings?.get(guild.id) || {};
+    
+    // Create welcome embed
+    const embed = new EmbedBuilder()
+      .setColor(COLORS.success)
+      .setAuthor({
+        name: '🎉 Welcome!',
+        iconURL: botAvatar
+      })
+      .setTitle(`Welcome to ${guild.name}!`)
+      .setDescription(`Hey **${member.user.username}**! We're so glad you're here.`)
+      .setThumbnail(member.displayAvatarURL())
+      .setImage(guild.iconURL())
+      .setFooter({
+        text: `Member #${memberCount} • ${client.user?.username || 'Bot'}`,
+        iconURL: botAvatar
+      })
+      .setTimestamp()
+      .addFields(
+        { name: '👤 Welcome!', value: 'Please read the rules and have fun!', inline: false },
+        { name: '📋 Rules', value: 'Check out the rules channel to avoid issues!', inline: true },
+        { name: '💬 Introduce', value: 'Tell us about yourself in the chat!', inline: true },
+        { name: '🎉 Member Count', value: `**${memberCount}** members`, inline: false }
+      );
+    
+    // Add role button if configured
+    let components = [];
+    if (welcomeSettings.autoRole) {
+      const roleButton = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('welcome-roles')
+            .setLabel('🎭 Get Roles')
+            .setStyle(ButtonStyle.Primary)
+        );
+      components = [roleButton];
     }
     
-    // Anti-Raid is handled in systems/antiRaid.js
+    await welcomeChannel.send({
+      content: `Welcome ${member}! 🎉`,
+      embeds: [embed],
+      components
+    });
+    
+    // Auto_assign role if configured
+    if (welcomeSettings.autoRole) {
+      const role = guild.roles.cache.get(welcomeSettings.autoRole);
+      if (role) {
+        try {
+          await member.roles.add(role);
+          console.log(`[Welcome] Added role ${role.name} to ${member.user.username}`);
+        } catch (err) {
+          console.error(`[Welcome] Error adding role:`, err.message);
+        }
+      }
+    }
   }
 };

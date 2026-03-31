@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { defaultConfig } = require('../../config');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Unmute command
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('unmute')
@@ -21,10 +21,8 @@ module.exports = {
     
     const member = interaction.guild.members.cache.get(user.id);
     if (!member) {
-      return interaction.reply({
-        content: '❌ User not found in this server!',
-        ephemeral: true
-      });
+      const errEmbedResponse = errorEmbed('User Not Found', 'User not found in this server!');
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
     
     // Try to remove timeout first
@@ -52,14 +50,27 @@ module.exports = {
     console.log(`[Unmute] ${user.tag} unmuted in ${interaction.guild.name}`);
     
     const embed = new EmbedBuilder()
+      .setColor(COLOR.INFO)
       .setTitle('🔊 User Unmuted')
-      .setColor(0x00ff00)
+      .setDescription(`${user.tag} has been unmuted`)
       .addFields(
-        { name: 'User', value: `${user} (${user.id})`, inline: true },
-        { name: 'Reason', value: reason, inline: true }
+        { name: 'User', value: user.toString(), inline: true },
+        { name: 'Moderator', value: interaction.user.toString(), inline: true },
+        { name: 'Reason', value: reason, inline: false }
+      )
+      .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+      .setTimestamp();
+    
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`unmute_redo_${user.id}`)
+          .setLabel('Mute Again')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔇')
       );
     
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], components: [row] });
     
     // Log to mod log channel
     const logChannel = interaction.guild.channels.cache.find(ch => 

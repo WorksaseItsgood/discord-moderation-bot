@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Slowmode command - Enhanced with exempt roles
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('slowmode')
@@ -24,11 +24,26 @@ module.exports = {
     await channel.setRateLimitPerUser(seconds);
     
     const embed = new EmbedBuilder()
-      .setTitle('Slowmode Set')
-      .setColor(0x3498db)
-      .setDescription('Slowmode set to ' + seconds + ' seconds in ' + channel.toString())
-      .addFields([{ name: 'Exempt Role', value: exemptRole ? exemptRole.toString() : 'None', inline: true }]);
+      .setColor(COLOR.INFO)
+      .setTitle('⏱️ Slowmode Set')
+      .setDescription(`Slowmode set to **${seconds} second(s)** in ${channel}`)
+      .addFields(
+        { name: 'Duration', value: `${seconds}s`, inline: true },
+        { name: 'Channel', value: channel.toString(), inline: true },
+        { name: 'Exempt Role', value: exemptRole ? exemptRole.toString() : 'None', inline: true }
+      )
+      .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+      .setTimestamp();
     
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`slowmode_reset_${channel.id}`)
+          .setLabel('Reset')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('⏱️')
+      );
+    
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

@@ -1,64 +1,137 @@
 /**
- * Suggest Command - Submit a suggestion
+ * Suggest Command - Make a suggestion with voting buttons
  */
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { suggestion, info, COLORS } = require('../../utils/embedTemplates');
+const { voteButtons, suggestionModal, createModal, textInput } = require('../../utils/buttonComponents');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('suggest')
-    .setDescription('Submit a suggestion for the server')
+    .setDescription('Make a suggestion for the server')
     .addStringOption(option =>
-      option.setName('suggestion')
+      option.setName('idea')
         .setDescription('Your suggestion')
-        .setRequired(true)
-    ),
+        .setRequired(false)),
   
   async execute(interaction, client) {
-    const content = interaction.options.getString('suggestion');
-    const guildId = interaction.guildId;
-    const userId = interaction.user.id;
+    const idea = interaction.options.getString('idea');
+    const botAvatar = client.user?.displayAvatarURL() || 'https://cdn.discordapp.com/embed/avatars/0.png';
     
-    // Check if suggestion channel is configured
-    const channelId = client.dbManager.getSetting('suggestion_channel', guildId);
-    
-    if (!channelId) {
-      return interaction.reply({ 
-        content: 'Suggestion channel not configured! Ask an admin to set it up.',
-        ephemeral: true 
+    // If no suggestion provided, show modal
+    if (!idea) {
+      const modal = createModal({
+        customId: 'suggestion-modal',
+        title: 'Make a Suggestion',
+        components: [
+          new ActionRowBuilder().addComponents(
+            textInput({
+              customId: 'suggestion-text',
+              label: 'Your Suggestion',
+              style: 2, // Paragraph
+              placeholder: 'Share your idea for the server...',
+              required: true,
+              minLength: 10,
+              maxLength: 2000
+            })
+          )
+        ]
       });
+      
+      await interaction.showModal(modal);
+      return;
     }
     
-    const channel = interaction.guild.channels.cache.get(channelId);
-    
-    if (!channel) {
-      return interaction.reply({ content: 'Suggestion channel not found!', ephemeral: true });
-    }
-    
-    // Create suggestion embed
-    const embed = new EmbedBuilder()
-      .setTitle('💡 New Suggestion')
-      .setColor(0x0099ff)
-      .setDescription(content)
-      .addFields(
-        { name: '👤 Submitted by', value: interaction.user.toString() }
-      )
-      .setFooter({ text: 'Vote with 👍 or 👎' })
-      .setTimestamp();
-    
-    // Send to channel
-    const message = await channel.send({ embeds: [embed] });
-    
-    // Add reactions
-    await message.react('👍');
-    await message.react('👎');
-    
-    // Save to database
-    client.dbManager.createSuggestion(message.id, userId, guildId, content);
-    
-    await interaction.reply({ 
-      content: `Suggestion submitted to ${channel.toString()}!`,
-      ephemeral: true 
-    });
+    // Process the suggestion
+    await handleSuggestion(interaction, client, idea, botAvatar);
   }
 };
+
+/**
+ * Handle the suggestion after receiving the text
+ */
+async function handleSuggestion(interaction, client, idea, botAvatar) {
+  const guildId = interaction.guild.id;
+  const userId = interaction.user.id;
+  
+  // Initialize suggestions storage
+  if (!client.suggestions) {
+    client.suggestions = new Map();
+  }
+  
+  const guildSuggestions = client.suggestions.get(guildId) || [];
+  
+  // Create suggestion
+  const suggestionData = {
+    id: guildSuggestions.length + 1,
+    suggestion: idea,
+    author: {
+      id: userId,
+      username: interaction.user.username,
+      avatar: interaction.user.displayAvatarURL()
+    },
+    upvotes: [],
+    downvotes: [],
+    status: 'pending',
+    createdAt: Date.now()
+  };
+  
+  guildSuggestions.push(suggestionData);
+  client.suggestions.set(guildId, guildSuggestions);
+  
+  // Create suggestion embed
+  const embed = new EmbedBuilder()
+    .setColor(COLORS.warning)
+    .setAuthor({
+      name: `💡 Suggestion by ${interaction.user.username}`,
+      iconURL: botAvatar
+    })
+    .setTitle('💡 New Suggestion')
+    .setDescription(idea)
+    .setThumbnail(interaction.user.displayAvatarURL())
+    .setFooter({
+      text: 'CrowBot • 👍 0 • 👎 0',
+      iconURL: botAvatar
+    })
+    .setTimestamp()
+    .addFields(
+      { name: '👤 Author', value: interaction.user.toString(), inline: true },
+      { name: '📊 Status', value: '⏳ Pending', inline: true },
+      { name: '👍 Upvotes', value: '0', inline: true },
+      { name: '👎 Downvotes', value: '0', inline: true }
+    );
+  
+  // Create vote buttons
+  const buttonRow = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`suggest-upvote-${suggestionData.id}`)
+        .setLabel('👍 Upvote')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`suggest-downvote-${suggestionData.id}`)
+        .setLabel('👎 Downvote')
+        .setStyle(ButtonStyle.Danger)
+    );
+  
+  // Send to suggestions channel or reply
+  const suggestChannel = interaction.guild.channels.cache.find(ch => 
+    ch.name === 'suggestions' || ch.name === 'suggestion-box'
+  );
+  
+  if (suggestChannel) {
+    await suggestChannel.send({ embeds: [embed], components: [buttonRow] });
+    
+    const successEmbed = info('💡 Suggestion Submitted', `Your suggestion has been posted to ${suggestChannel}!`, {
+      thumbnail: botAvatar
+    });
+    
+    await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+  } else {
+    // Reply directly with buttons
+    await interaction.reply({ embeds: [embed], components: [buttonRow] });
+  }
+}
+
+module.exports.handleSuggestion = handleSuggestion;

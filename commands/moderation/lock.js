@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Lock command - lock a channel to prevent users from sending messages
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('lock')
@@ -36,14 +36,32 @@ module.exports = {
       console.log(`[Lock] ${channel.name} locked in ${interaction.guild.name}. Reason: ${reason}`);
       
       const embed = new EmbedBuilder()
+        .setColor(COLOR.WARNING)
         .setTitle('🔒 Channel Locked')
-        .setColor(0xff0000)
+        .setDescription(`${channel} has been locked`)
         .addFields(
           { name: 'Channel', value: channel.toString(), inline: true },
-          { name: 'Reason', value: reason, inline: true }
+          { name: 'Moderator', value: interaction.user.toString(), inline: true },
+          { name: 'Reason', value: reason, inline: false }
+        )
+        .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+        .setTimestamp();
+      
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`lock_view_${channel.id}`)
+            .setLabel('View Settings')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('⚙️'),
+          new ButtonBuilder()
+            .setCustomId(`lock_unlock_${channel.id}`)
+            .setLabel('Unlock')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔓')
         );
       
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({ embeds: [embed], components: [row] });
       
       // Log to mod log channel
       const logChannel = interaction.guild.channels.cache.find(ch => 
@@ -53,11 +71,9 @@ module.exports = {
       if (logChannel && logChannel.id !== channel.id) {
         await logChannel.send({ embeds: [embed] });
       }
-    } catch (error) {
-      return interaction.reply({
-        content: `❌ Error locking channel: ${error.message}`,
-        ephemeral: true
-      });
+    } catch (err) {
+      const errEmbedResponse = errorEmbed('Lock Failed', err.message);
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
   }
 };

@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Unban command
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('unban')
@@ -41,23 +41,34 @@ module.exports = {
     try {
       await interaction.guild.bans.remove(userId, reason);
     } catch (error) {
-      return interaction.reply({
-        content: `❌ Could not unban user: ${error.message}`,
-        ephemeral: true
-      });
+      const errEmbedResponse = errorEmbed('Unban Failed', error.message);
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
     
     console.log(`[Unban] ${userTag} (${userId}) unbanned in ${interaction.guild.name}`);
     
     const embed = new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
       .setTitle('✅ User Unbanned')
-      .setColor(0x00ff00)
+      .setDescription(`${userTag} has been unbanned from the server`)
       .addFields(
         { name: 'User', value: `${userTag} (${userId})`, inline: true },
-        { name: 'Reason', value: reason, inline: true }
+        { name: 'Moderator', value: interaction.user.toString(), inline: true },
+        { name: 'Reason', value: reason, inline: false }
+      )
+      .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+      .setTimestamp();
+    
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`unban_redo_${userId}`)
+          .setLabel('Re-ban')
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji('🔨')
       );
     
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], components: [row] });
     
     // Log to mod log channel
     const logChannel = interaction.guild.channels.cache.find(ch => 

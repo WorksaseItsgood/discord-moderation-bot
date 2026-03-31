@@ -1,101 +1,118 @@
 /**
- * Balance Command - Check your economy balance
+ * Balance Command - Check user balance with beautiful UI
  */
 
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const path = require('path');
-const Canvas = require('canvas');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { economy, success, error, COLORS } = require('../../utils/embedTemplates');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('balance')
-    .setDescription('Check your balance and bank')
+    .setDescription('Check your or another user\'s balance')
     .addUserOption(option =>
       option.setName('user')
-        .setDescription('User to check (optional)')
-    ),
+        .setDescription('User to check balance for')
+        .setRequired(false)),
   
   async execute(interaction, client) {
     const user = interaction.options.getUser('user') || interaction.user;
-    const guildId = interaction.guildId;
+    const botAvatar = client.user?.displayAvatarURL() || 'https://cdn.discordapp.com/embed/avatars/0.png';
     
-    // Get or create user
-    const userData = client.dbManager.getOrCreateUser(user.id, guildId);
-    
-    // Create balance card image
-    const canvas = Canvas.createCanvas(400, 200);
-    const ctx = canvas.getContext('2d');
-    
-    // Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, 400, 200);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#16213e');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 400, 200);
-    
-    // Card border
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(10, 10, 380, 180);
-    
-    // User avatar
-    try {
-      const avatar = await Canvas.loadImage(user.displayAvatarURL({ extension: 'png', size: 128 }));
-      ctx.beginPath();
-      ctx.arc(60, 60, 35, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(avatar, 25, 25, 70, 70);
-      ctx.restore();
-    } catch (e) {
-      // Default avatar circle
-      ctx.beginPath();
-      ctx.arc(60, 60, 35, 0, Math.PI * 2);
-      ctx.fillStyle = '#333';
-      ctx.fill();
+    // Get or initialize economy data
+    if (!client.economy) {
+      client.economy = new Map();
     }
     
-    // Username
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText(user.username, 110, 50);
+    let userData = client.economy.get(`${interaction.guild.id}-${user.id}`);
     
-    // Level badge
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(`Level ${userData.level}`, 110, 75);
+    if (!userData) {
+      userData = {
+        wallet: 100,
+        bank: 0,
+        totalxp: 0,
+        level: 1,
+        daily: 0,
+        weekly: 0,
+        work: 0
+      };
+      client.economy.set(`${interaction.guild.id}-${user.id}`, userData);
+    }
     
-    // Balance section
-    ctx.fillStyle = '#00ff88';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('💰 Cash:', 40, 130);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(`${userData.balance.toLocaleString()} coins`, 150, 130);
+    const { wallet, bank, level, totalxp } = userData;
+    const total = wallet + bank;
     
-    // Bank section
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('🏦 Bank:', 40, 165);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(`${userData.bank.toLocaleString()} coins`, 150, 165);
-    
-    // XP bar
-    const xpProgress = userData.xp / (userData.level * 1000);
-    ctx.fillStyle = '#333';
-    ctx.fillRect(40, 185, 320, 10);
-    ctx.fillStyle = '#9b59b6';
-    ctx.fillRect(40, 185, Math.min(xpProgress * 320, 320), 10);
-    
-    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'balance.png' });
-    
+    // Create beautiful balance embed
     const embed = new EmbedBuilder()
-      .setTitle('💰 Economy Balance')
-      .setColor(0x00ff00)
-      .setImage('attachment://balance.png')
-      .setFooter({ text: `Total Net Worth: ${(userData.balance + userData.bank).toLocaleString()} coins` });
+      .setColor(COLORS.economy)
+      .setAuthor({
+        name: `💰 ${user.username}'s Wallet`,
+        iconURL: botAvatar
+      })
+      .setTitle(`💰 ${user.username}'s Balance`)
+      .setDescription(user.id === interaction.user.id 
+        ? 'Here is your current balance:' 
+        : `Here is ${user.username}'s balance:`)
+      .setThumbnail(user.displayAvatarURL())
+      .setFooter({
+        text: `CrowBot • Level ${level}`,
+        iconURL: botAvatar
+      })
+      .setTimestamp()
+      .addFields(
+        { 
+          name: '💵 Wallet', 
+          value: `\`$${wallet.toLocaleString()}\``, 
+          inline: true 
+        },
+        { 
+          name: '🏦 Bank', 
+          value: `\`$${bank.toLocaleString()}\``, 
+          inline: true 
+        },
+        { 
+          name: '💰 Total Net Worth', 
+          value: `\`$${total.toLocaleString()}\``, 
+          inline: false 
+        }
+      );
     
-    await interaction.reply({ embeds: [embed], files: [attachment] });
+    // Add action buttons
+    const buttonRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('balance-daily')
+          .setLabel('📅 Daily')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('balance-weekly')
+          .setLabel('📆 Weekly')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('balance-work')
+          .setLabel('💼 Work')
+          .setStyle(ButtonStyle.Primary)
+      );
+    
+    const buttonRow2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('balance-deposit')
+          .setLabel('⬇️ Deposit')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('balance-withdraw')
+          .setLabel('⬆️ Withdraw')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('balance-gamble')
+          .setLabel('🎰 Gamble')
+          .setStyle(ButtonStyle.Danger)
+      );
+    
+    if (user.id === interaction.user.id) {
+      await interaction.reply({ embeds: [embed], components: [buttonRow, buttonRow2] });
+    } else {
+      await interaction.reply({ embeds: [embed] });
+    }
   }
 };

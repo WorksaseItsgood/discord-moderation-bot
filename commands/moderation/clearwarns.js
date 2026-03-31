@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Clearwarns command - clear all warnings for a user
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('clearwarns')
@@ -23,10 +23,8 @@ module.exports = {
     const warningCount = userWarnings.length;
     
     if (warningCount === 0) {
-      return interaction.reply({
-        content: `✅ ${user} has no warnings to clear!`,
-        ephemeral: true
-      });
+      const noWarnEmbed = success('No Warnings', `${user.tag} has no warnings to clear!`);
+      return interaction.reply({ embeds: [noWarnEmbed], ephemeral: true });
     }
     
     // Remove user's warnings
@@ -36,15 +34,28 @@ module.exports = {
     console.log(`[Clearwarns] Cleared ${warningCount} warnings for ${user.tag} in ${interaction.guild.name}`);
     
     const embed = new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
       .setTitle('✅ Warnings Cleared')
-      .setColor(0x00ff00)
+      .setDescription(`${warningCount} warning(s) cleared for ${user.tag}`)
       .addFields(
-        { name: 'User', value: `${user} (${user.id})`, inline: true },
+        { name: 'User', value: user.toString(), inline: true },
+        { name: 'Moderator', value: interaction.user.toString(), inline: true },
         { name: 'Warnings Cleared', value: String(warningCount), inline: true },
-        { name: 'Reason', value: reason, inline: true }
+        { name: 'Reason', value: reason, inline: false }
+      )
+      .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+      .setTimestamp();
+    
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`clearwarns_undo_${user.id}`)
+          .setLabel('View User')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('👤')
       );
     
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], components: [row] });
     
     // Log to mod log channel
     const logChannel = interaction.guild.channels.cache.find(ch => 

@@ -1,8 +1,9 @@
 /**
- * Ticket Create Command - Create a support ticket
+ * Ticket Create Command - Create a ticket with button panel
  */
 
-const { SlashCommandBuilder, EmbedBuilder, ChannelType, ButtonStyle, ActionRowBuilder, ButtonBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, PermissionFlagsBits } = require('discord.js');
+const { ticket, success, error, COLORS } = require('../../utils/buttonComponents');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,122 +12,143 @@ module.exports = {
     .addStringOption(option =>
       option.setName('category')
         .setDescription('Ticket category')
+        .setRequired(false)
         .addChoices(
-          { name: 'General Support', value: 'general' },
-          { name: 'Report a User', value: 'report' },
-          { name: 'Bug Report', value: 'bug' },
-          { name: 'Partner Inquiry', value: 'partner' }
-        )
-    )
+          { name: '💬 General', value: 'general' },
+          { name: '🛠️ Support', value: 'support' },
+          { name: '💰 Billing', value: 'billing' },
+          { name: '🐛 Bug Report', value: 'bug' },
+          { name: '💡 Suggestion', value: 'suggestion' }
+        ))
     .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for ticket')
-        .setRequired(true)
-    ),
+      option.setName('description')
+        .setDescription('Describe your issue')
+        .setRequired(false)),
   
   async execute(interaction, client) {
     const category = interaction.options.getString('category') || 'general';
-    const reason = interaction.options.getString('reason');
-    const guildId = interaction.guildId;
-    const userId = interaction.user.id;
+    const description = interaction.options.getString('description') || 'No description provided';
     
-    // Check if user already has an open ticket
-    const existingTickets = client.dbManager.getOpenTickets(guildId);
-    const userTickets = existingTickets.filter(t => t.user_id === userId);
+    const botAvatar = client.user?.displayAvatarURL() || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    
+    // Check if user already has a ticket
+    if (!client.tickets) {
+      client.tickets = new Map();
+    }
+    
+    const userTickets = Array.from(client.tickets.values()).filter(
+      t => t.userId === interaction.user.id && t.guildId === interaction.guild.id && !t.closed
+    );
     
     if (userTickets.length > 0) {
-      const channel = interaction.guild.channels.cache.get(userTickets[0].channel_id);
-      return interaction.reply({ 
-        content: `You already have an open ticket: ${channel ? channel.toString() : 'unknown channel'}`,
-        ephemeral: true 
-      });
+      const errorEmbed = error('❌ Ticket Exists', 'You already have an open ticket. Please close it first.', { thumbnail: botAvatar });
+      return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
     
-    // Get ticket config
-    const ticketCategoryId = client.dbManager.getSetting('ticket_category', guildId);
-    const ticketLogChannelId = client.dbManager.getSetting('ticket_log_channel', guildId);
+    // Get ticket category info
+    const categoryInfo = {
+      general: { emoji: '💬', name: 'General Support', color: COLORS.secondary },
+      support: { emoji: '🛠️', name: 'Technical Support', color: COLORS.music },
+      billing: { emoji: '💰', name: 'Billing', color: COLORS.economy },
+      bug: { emoji: '🐛', name: 'Bug Report', color: COLORS.error },
+      suggestion: { emoji: '💡', name: 'Suggestion', color: COLORS.success }
+    };
+    
+    const cat = categoryInfo[category];
+    const ticketId = Math.random().toString(36).substr(2, 8).toUpperCase();
     
     // Create ticket channel
-    const channelName = `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString().slice(-4)}`;
+    const ticketChannel = await interaction.guild.channels.create({
+      name: `ticket-${interaction.user.username}-${ticketId}`,
+      type: 0, // Text channel
+      topic: `Ticket for ${interaction.user.username} (${category})`,
+      permissionOverwrites: [
+        {
+          id: interaction.guild.id,
+          deny: ['ViewChannel']
+        },
+        {
+          id: interaction.user.id,
+          allow: ['ViewChannel', 'SendMessages', 'AttachFiles', 'EmbedLinks']
+        }
+      ]
+    });
     
-    let ticketChannel;
+    // Store ticket info
+    const ticketData = {
+      id: ticketId,
+      channelId: ticketChannel.id,
+      userId: interaction.user.id,
+      guildId: interaction.guild.id,
+      category,
+      description,
+      createdAt: Date.now(),
+      closed: false
+    };
     
-    try {
-      ticketChannel = await interaction.guild.channels.create({
-        name: channelName,
-        type: ChannelType.GuildText,
-        parent: ticketCategoryId,
-        permissionOverwrites: [
-          {
-            id: interaction.guild.roles.everyone,
-            deny: ['ViewChannel']
-          },
-          {
-            id: userId,
-            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
-          },
-          {
-            id: interaction.client.user.id,
-            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageChannels']
-          }
-        ]
-      });
-    } catch (e) {
-      console.error('[Ticket] Error creating channel:', e);
-      return interaction.reply({ content: 'Error creating ticket channel!', ephemeral: true });
-    }
+    client.tickets.set(ticketChannel.id, ticketData);
     
-    // Save ticket to database
-    client.dbManager.createTicket(ticketChannel.id, userId, guildId, category);
-    
-    // Send ticket embed
+    // Create ticket embed
     const embed = new EmbedBuilder()
-      .setTitle('🎫 New Support Ticket')
-      .setColor(0x00ff00)
+      .setColor(cat.color)
+      .setAuthor({
+        name: `${cat.emoji} Support Ticket`,
+        iconURL: botAvatar
+      })
+      .setTitle(`${cat.emoji} Ticket #${ticketId}`)
+      .setDescription(`**${interaction.user.username}** created a new ticket.`)
+      .setThumbnail(interaction.user.displayAvatarURL())
+      .setFooter({
+        text: `CrowBot • Ticket ID: ${ticketId}`,
+        iconURL: botAvatar
+      })
+      .setTimestamp()
       .addFields(
-        { name: '👤 User', value: interaction.user.toString(), inline: true },
-        { name: '📁 Category', value: category.charAt(0).toUpperCase() + category.slice(1), inline: true },
-        { name: '📝 Reason', value: reason }
-      )
-      .setFooter({ text: `Ticket ID: ${ticketChannel.id}` })
-      .setTimestamp();
+        { name: '👤 User', value: `${interaction.user}`, inline: true },
+        { name: '📁 Category', value: cat.name, inline: true },
+        { name: '📝 Description', value: description, inline: false }
+      );
     
-    // Add close button
-    const closeButton = new ActionRowBuilder()
+    // Ticket action buttons
+    const buttonRow = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('ticket-add-user')
+          .setLabel('➕ Add User')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
           .setCustomId('ticket-close')
-          .setLabel('🔒 Close Ticket')
+          .setLabel('✖️ Close Ticket')
           .setStyle(ButtonStyle.Danger)
       );
     
-    await ticketChannel.send({ 
-      embeds: [embed], 
-      components: [closeButton],
-      content: interaction.user.toString()
+    // Send ticket message
+    await ticketChannel.send({
+      embeds: [embed],
+      components: [buttonRow]
     });
     
-    // Notify user
-    await interaction.reply({ 
-      content: `Your ticket has been created: ${ticketChannel.toString()}`,
-      ephemeral: true 
-    });
+    // Success embed for user
+    const successEmbed = new EmbedBuilder()
+      .setColor(COLORS.success)
+      .setAuthor({
+        name: '🎫 Ticket Created',
+        iconURL: botAvatar
+      })
+      .setTitle('🎫 Ticket Created Successfully')
+      .setDescription(`Your ticket has been created in ${ticketChannel}.`)
+      .setThumbnail(botAvatar)
+      .setFooter({
+        text: 'CrowBot',
+        iconURL: botAvatar
+      })
+      .setTimestamp()
+      .addFields(
+        { name: '🎫 Ticket ID', value: `\`${ticketId}\``, inline: true },
+        { name: '📁 Category', value: cat.name, inline: true },
+        { name: '💬 Channel', value: ticketChannel.toString(), inline: false }
+      );
     
-    // Log to ticket log channel
-    if (ticketLogChannelId) {
-      const logChannel = interaction.guild.channels.cache.get(ticketLogChannelId);
-      if (logChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle('🎫 Ticket Created')
-          .setColor(0x00ff00)
-          .addFields(
-            { name: '👤 User', value: interaction.user.toString(), inline: true },
-            { name: '📁 Channel', value: ticketChannel.toString(), inline: true },
-            { name: '📝 Reason', value: reason }
-          );
-        
-        await logChannel.send({ embeds: [logEmbed] });
-      }
-    }
+    await interaction.reply({ embeds: [successEmbed] });
   }
 };

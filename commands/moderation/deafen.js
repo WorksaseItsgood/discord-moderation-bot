@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { modAction, success, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
 
-// Deafen command - deafen a user in voice
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('deafen')
@@ -20,18 +20,14 @@ module.exports = {
     
     const member = interaction.guild.members.cache.get(user.id);
     if (!member) {
-      return interaction.reply({
-        content: '❌ User not found in this server!',
-        ephemeral: true
-      });
+      const errEmbedResponse = errorEmbed('User Not Found', 'User not found in this server!');
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
     
     const voiceState = member.voice;
     if (!voiceState.channelId) {
-      return interaction.reply({
-        content: '❌ User is not in a voice channel!',
-        ephemeral: true
-      });
+      const errEmbedResponse = errorEmbed('Not in Voice', 'User is not in a voice channel!');
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
     
     try {
@@ -40,28 +36,40 @@ module.exports = {
       console.log(`[Deafen] ${user.tag} deafened in ${interaction.guild.name}`);
       
       const embed = new EmbedBuilder()
-        .setTitle('🔇 Deafened')
-        .setColor(0xffaa00)
+        .setColor(COLOR.INFO)
+        .setTitle('🔇 User Deafened')
+        .setDescription(`${user.tag} has been deafened in voice`)
         .addFields(
-          { name: 'User', value: `${user} (${user.id})`, inline: true },
-          { name: 'Reason', value: reason, inline: true }
+          { name: 'User', value: user.toString(), inline: true },
+          { name: 'Voice Channel', value: voiceState.channel?.toString() || 'Unknown', inline: true },
+          { name: 'Moderator', value: interaction.user.toString(), inline: true },
+          { name: 'Reason', value: reason, inline: false }
+        )
+        .setFooter({ text: 'Niotic Moderation • ' + new Date().toLocaleDateString() })
+        .setTimestamp();
+      
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`deafen_undeafen_${user.id}`)
+            .setLabel('Undeafen')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔊')
         );
       
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({ embeds: [embed], components: [row] });
       
       // Log to mod log channel
-      const logChannel = interaction.guild.channels.cache.find(ch => 
+      const logChannel = interaction.guild.members.cache.find(ch => 
         ch.name === 'mod-logs' || ch.name === 'moderation-logs'
       );
       
       if (logChannel) {
         await logChannel.send({ embeds: [embed] });
       }
-    } catch (error) {
-      return interaction.reply({
-        content: `❌ Error deafening user: ${error.message}`,
-        ephemeral: true
-      });
+    } catch (err) {
+      const errEmbedResponse = errorEmbed('Deafen Failed', err.message);
+      return interaction.reply({ embeds: [errEmbedResponse], ephemeral: true });
     }
   }
 };
