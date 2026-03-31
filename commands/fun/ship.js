@@ -3,7 +3,6 @@
  */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { shipNames } = require('./data/games.json');
 
 function randomize(a, b) {
   return Math.floor(Math.random() * (b - a + 1)) + a;
