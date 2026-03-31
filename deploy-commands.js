@@ -17,7 +17,8 @@ const commandNames = new Set();
 const commandFolders = [
   'moderation', 'config', 'info', 'utility', 'fun', 'game',
   'economy', 'music', 'tickets', 'verification',
-  'giveaway', 'suggestion', 'welcome', 'starboard'
+  'giveaway', 'suggestion', 'welcome', 'starboard',
+  'sound', 'image', 'social'
 ];
 
 console.log('[Deploy] Collecting commands...\n');
