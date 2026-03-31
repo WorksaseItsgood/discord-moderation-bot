@@ -1,98 +1,70 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { defaultConfig } = require('../../config');
-const { kickEmbed, error: errorEmbed, COLOR } = require('../../utils/embedTemplates');
+/**
+ * Enhanced Kick Command with reason
+ */
+
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('kick')
     .setDescription('Kick a user from the server')
-    .addUserOption(option =>
-      option.setName('user')
-        .setDescription('User to kick')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for kick')
-        .setRequired(false))
-    .addBooleanOption(option =>
-      option.setName('dm')
-        .setDescription('DM the user about the kick')
-        .setRequired(false)),
-  permissions: [PermissionFlagsBits.KickMembers],
+    .addUserOption(option => option.setName('user').setDescription('User to kick').setRequired(true))
+    .addStringOption(option => option.setName('reason').setDescription('Reason for kick').setRequired(false))
+    .addBooleanOption(option => option.setName('soft').setDescription('Soft ban (can rejoin)').setRequired(false)),
+
   async execute(interaction, client) {
     const user = interaction.options.getUser('user');
     const reason = interaction.options.getString('reason') || 'No reason provided';
-    const dm = interaction.options.getBoolean('dm') ?? true;
-    
+    const soft = interaction.options.getBoolean('soft') || false;
+
+    if (!interaction.member.permissions.has('KickMembers')) {
+      return interaction.reply({ content: '❌ You need Kick Members permission!', ephemeral: true });
+    }
+
     const member = interaction.guild.members.cache.get(user.id);
-    const guildConfig = defaultConfig;
-    const dmOnAction = guildConfig.moderation?.dmOnAction ?? true;
-    
-    // Check if user is kickable
-    if (member) {
-      if (!member.kickable) {
-        const errEmbed = errorEmbed('Cannot Kick', 'I cannot kick this user! They may have higher permissions than me.');
-        return interaction.reply({ embeds: [errEmbed], ephemeral: true });
-      }
+    if (!member) {
+      return interaction.reply({ content: '❌ User not found in server!', ephemeral: true });
     }
-    
-    // Try to DM user
-    let dmSent = false;
-    if (dm && dmOnAction) {
-      const { EmbedBuilder } = require('discord.js');
-      const dmEmbed = new EmbedBuilder()
-        .setColor(COLOR.MOD)
-        .setTitle('👢 You have been kicked')
-        .setDescription(`You were kicked from **${interaction.guild.name}**`)
-        .addFields(
-          { name: 'Reason', value: reason }
-        )
-        .setFooter({ text: 'Niotic Moderation' })
-        .setTimestamp();
-      
-      try {
-        await user.send({ embeds: [dmEmbed] });
-        dmSent = true;
-      } catch (err) {
-        console.log(`[Kick] Could not DM user ${user.tag}: ${err.message}`);
-      }
-    }
-    
-    // Kick the user
+
+    const caseId = Math.floor(Math.random() * 90000) + 10000;
+
     try {
       await member.kick(reason);
-    } catch (error) {
-      const errEmbed = errorEmbed('Kick Failed', error.message);
-      return interaction.reply({ embeds: [errEmbed], ephemeral: true });
-    }
-    
-    console.log(`[Kick] ${user.tag} (${user.id}) kicked from ${interaction.guild.name}. Reason: ${reason}`);
-    
-    const kickSuccessEmbed = kickEmbed('User Kicked', user, interaction.user, reason);
-    
-    const row = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`kick_warn_${user.id}`)
-          .setLabel('Warn')
-          .setStyle(ButtonStyle.Warning)
-          .setEmoji('⚠️'),
-        new ButtonBuilder()
-          .setCustomId(`kick_ban_${user.id}`)
-          .setLabel('Ban')
-          .setStyle(ButtonStyle.Danger)
-          .setEmoji('🔨')
-      );
-    
-    await interaction.reply({ embeds: [kickSuccessEmbed], components: [row] });
-    
-    // Log to mod log channel
-    const logChannel = interaction.guild.channels.cache.find(ch => 
-      ch.name === 'mod-logs' || ch.name === 'moderation-logs'
-    );
-    
-    if (logChannel) {
-      await logChannel.send({ embeds: [kickSuccessEmbed] });
+
+      if (soft) {
+        const embed = new EmbedBuilder()
+          .setTitle('👢 User Soft Banned')
+          .setDescription('**Case #' + caseId + '**\nUser can rejoin with invite')
+          .addFields(
+            { name: '👤 User', value: user.tag + ' (`' + user.id + '`)', inline: true },
+            { name: '📝 Reason', value: reason, inline: true },
+            { name: '👮 By', value: interaction.user.tag, inline: true }
+          )
+          .setColor(0xff6600)
+          .setThumbnail(user.displayAvatarURL());
+        return interaction.reply({ embeds: [embed] });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('👢 User Kicked')
+        .setDescription('**Case #' + caseId + '**')
+        .addFields(
+          { name: '👤 User', value: user.tag + ' (`' + user.id + '`)', inline: true },
+          { name: '📝 Reason', value: reason, inline: true },
+          { name: '👮 Moderator', value: interaction.user.tag, inline: true },
+          { name: '📅 Date', value: new Date().toLocaleString(), inline: true }
+        )
+        .setColor(0xff6600)
+        .setThumbnail(user.displayAvatarURL());
+
+      const logChannel = interaction.guild.channels.cache.find(c => c.name.includes('mod-log'));
+      if (logChannel) {
+        logChannel.send({ embeds: [embed] }).catch(() => {});
+      }
+
+      await interaction.reply({ embeds: [embed] });
+    } catch (e) {
+      await interaction.reply({ content: '❌ Failed to kick: ' + e.message, ephemeral: true });
     }
   }
 };

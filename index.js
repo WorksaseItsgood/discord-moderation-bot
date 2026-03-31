@@ -48,7 +48,10 @@ const commandFolders = [
   'giveaway',
   'suggestion',
   'utility',
-  'game'
+  'game',
+  'social',
+  'image',
+  'sound'
 ];
 
 // Load commands

@@ -1,0 +1,21 @@
+/**
+ * Bingo Command
+ */
+
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('bingo')
+    .setDescription('Play a game of bingo'),
+  
+  async execute(interaction, client) {
+    const embed = new EmbedBuilder()
+      .setTitle('🎮 Bingo')
+      .setDescription('Play a game of bingo')
+      .setColor(0x5865F2)
+      .setTimestamp();
+    
+    await interaction.reply({ embeds: [embed] });
+  }
+};

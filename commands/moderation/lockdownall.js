@@ -1,0 +1,21 @@
+/**
+ * Lockdownall Command
+ */
+
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('lockdownall')
+    .setDescription('Lockdown all'),
+  
+  async execute(interaction, client) {
+    const embed = new EmbedBuilder()
+      .setTitle('🎮 Lockdownall')
+      .setDescription('Lockdown all')
+      .setColor(0x5865F2)
+      .setTimestamp();
+    
+    await interaction.reply({ embeds: [embed] });
+  }
+};
