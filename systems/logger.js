@@ -58,7 +58,7 @@ async function logMessageDelete(message, client) {
     .addFields(
       { name: 'Author', value: `${message.author} (${message.author?.id})`, inline: true },
       { name: 'Channel', value: message.channel.toString(), inline: true }
-    ))
+    )
     .setDescription(message.content || '*No text content*');
   
   // Check for attachments
@@ -94,7 +94,7 @@ async function logMessageEdit(oldMessage, newMessage, client) {
     .addFields(
       { name: 'Author', value: `${newMessage.author} (${newMessage.author?.id})`, inline: true },
       { name: 'Channel', value: newMessage.channel.toString(), inline: true }
-    ))
+    )
     .addFields(
       { name: 'Before', value: oldMessage.content?.substring(0, 1024) || '*Empty*', inline: false },
       { name: 'After', value: newMessage.content?.substring(0, 1024) || '*Empty*', inline: false }
@@ -120,7 +120,7 @@ async function logMemberLeave(member, client) {
     .addFields(
       { name: 'User', value: `${member.user} (${member.user.id})`, inline: true },
       { name: 'Joined', value: member.joinedAt?.toLocaleString() || 'Unknown', inline: true }
-    ))
+    )
     .setFooter({ text: `Member #${member.guild.memberCount}` });
   
   await logChannel.send({ embeds: [embed] }).catch(() => {});
@@ -151,7 +151,7 @@ async function logVoiceChange(oldState, newState, client) {
       .addFields(
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Channel', value: newState.channel?.toString() || 'Unknown', inline: true }
-      ));
+      );
     
     return logChannel.send({ embeds: [embed] }).catch(() => {});
   }
@@ -165,7 +165,7 @@ async function logVoiceChange(oldState, newState, client) {
       .addFields(
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Channel', value: oldState.channel?.toString() || 'Unknown', inline: true }
-      ));
+      );
     
     return logChannel.send({ embeds: [embed] }).catch(() => {});
   }
@@ -180,11 +180,11 @@ async function logVoiceChange(oldState, newState, client) {
         .addFields(
           { name: 'User', value: `${user} (${user.id})`, inline: true },
           { name: 'Channel', value: newState.channel?.toString() || 'Unknown', inline: true }
-        ))
+        )
         .addFields(
           { name: 'Self Mute', value: newState.mute ? '🔇 Muted' : '🔊 Unmuted', inline: true },
           { name: 'Self Deafen', value: newState.deaf ? '🔇 Deafened' : '🔊 Not Deafened', inline: true }
-        ));
+        );
       
       return logChannel.send({ embeds: [embed] }).catch(() => {});
     }
@@ -199,7 +199,7 @@ async function logVoiceChange(oldState, newState, client) {
           { name: 'User', value: `${user} (${user.id})`, inline: true },
           { name: 'From', value: oldState.channel?.toString() || 'Unknown', inline: true },
           { name: 'To', value: newState.channel?.toString() || 'Unknown', inline: true }
-        ));
+        );
       
       return logChannel.send({ embeds: [embed] }).catch(() => {});
     }
@@ -223,7 +223,7 @@ async function logChannelChange(guild, channel, action, client) {
     .addFields(
       { name: 'Channel', value: channel.toString(), inline: true },
       { name: 'Type', value: channel.type.toString(), inline: true }
-    ));
+    );
   
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }

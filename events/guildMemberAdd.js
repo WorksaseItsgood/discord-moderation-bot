@@ -26,7 +26,7 @@ module.exports = {
             { name: 'User', value: `${member} (${member.user.id})`, inline: true },
             { name: 'Account Age', value: `${accountAge} days`, inline: true },
             { name: 'Bot', value: member.user.bot ? '🤖 Yes' : '👤 No', inline: true }
-          ));
+          );
         
         await logChannel.send({ embeds: [embed] }).catch(() => {});
       }

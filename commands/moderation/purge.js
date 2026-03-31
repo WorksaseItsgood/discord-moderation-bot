@@ -50,7 +50,7 @@ module.exports = {
           { name: 'Deleted', value: String(toDelete.size), inline: true },
           { name: 'Channel', value: interaction.channel.toString(), inline: true },
           { name: 'Reason', value: reason, inline: true }
-        ));
+        );
       
       //ephemeral reply to hide from others
       await interaction.reply({ embeds: [embed], ephemeral: true });

@@ -76,7 +76,7 @@ module.exports = {
         { name: 'Role', value: role.toString(), inline: true },
         { name: 'Action', value: actionText, inline: true },
         { name: 'Reason', value: reason, inline: false }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     

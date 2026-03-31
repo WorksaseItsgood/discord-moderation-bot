@@ -51,7 +51,7 @@ module.exports = {
         { name: 'Emojis', value: `${emojiCount}`, inline: true },
         { name: 'Growth (7d)', value: growth, inline: true },
         { name: 'Created', value: guild.createdAt.toLocaleDateString(), inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
   }

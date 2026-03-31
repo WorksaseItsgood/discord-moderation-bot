@@ -8,26 +8,18 @@ const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 
 module.exports = (client) => {
+  // Build plugins array conditionally
+  const plugins = [new SoundCloudPlugin()];
+  if (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
+    plugins.unshift(new SpotifyPlugin({
+      clientId: process.env.SPOTIFY_CLIENT_ID,
+      clientSecret: process.env.SPOTIFY_CLIENT_SECRET
+    }));
+  }
+  
   // Create DisTube instance
   client.distube = new DisTube(client, {
-    searchSongs: 10,
-    searchCooldown: 30,
-    leaveOnEmpty: true,
-    leaveOnEmptyCooldown: 60,
-    leaveOnFinish: false,
-    leaveOnStop: false,
-    customFilter: {}, // Custom ffmpeg filters
-    defaultVolume: 100,
-    maxConnectors: 1,
-    retryCount: 3,
-    retryTimeout: 5000,
-    plugins: [
-      new SpotifyPlugin({
-        clientId: process.env.SPOTIFY_CLIENT_ID || '',
-        clientSecret: process.env.SPOTIFY_CLIENT_SECRET || ''
-      }),
-      new SoundCloudPlugin()
-    ]
+    plugins: plugins
   });
   
   // Status events

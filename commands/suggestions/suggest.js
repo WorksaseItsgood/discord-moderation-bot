@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { defaultConfig } = require('../config');
+const { defaultConfig } = require('../../config');
 
 // Suggest command - create a suggestion
 module.exports = {

@@ -66,7 +66,7 @@ module.exports = {
       .addFields(
         { name: 'Channels Unlocked', value: String(unlockedCount), inline: true },
         { name: 'Reason', value: reason, inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     
@@ -80,7 +80,7 @@ module.exports = {
     }
     
     // Notify in raid log channel if configured
-    const config = require('../config').defaultConfig;
+    const config = require('../../config').defaultConfig;
     if (config.raid?.logChannel) {
       const raidLogChannel = guild.channels.cache.get(config.raid.logChannel);
       if (raidLogChannel) {

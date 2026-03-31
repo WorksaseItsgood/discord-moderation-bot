@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { defaultConfig } = require('../config');
+const { defaultConfig } = require('../../config');
 
 // Warn command
 module.exports = {
@@ -71,7 +71,7 @@ module.exports = {
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Reason', value: reason, inline: true },
         { name: 'Total Warnings', value: String(userWarnings.length + 1), inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     

@@ -75,7 +75,7 @@ module.exports = {
       .addFields(
         { name: 'Category', value: categoryNames[category], inline: true },
         { name: 'Created By', value: user.toString(), inline: true }
-      ));
+      );
     
     // Add close button
     const row = new ActionRowBuilder()

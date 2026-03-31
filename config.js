@@ -229,6 +229,15 @@ function getGuildConfig(client, guildId) {
 
 // Export functions
 module.exports = {
+  // Direct exports for deploy-commands.js compatibility
+  clientId: process.env.CLIENT_ID || '',
+  token: process.env.DISCORD_TOKEN || process.env.TOKEN || '',
+  owners: process.env.OWNERS ? process.env.OWNERS.split(',') : [],
+  debug: process.env.DEBUG === 'true' || false,
+  registerCommandsGlobally: process.env.GLOBAL_COMMANDS === 'true' || false,
+  status: process.env.STATUS || ' moderation.help',
+  prefix: process.env.PREFIX || '!',
+  // Also export functions
   defaultConfig,
   loadConfig,
   saveGuildConfig,

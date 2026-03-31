@@ -102,7 +102,7 @@ async function createBackup(interaction, guild, db) {
       { name: 'Server', value: guild.name, inline: true },
       { name: 'Roles', value: String(backup.roles.length), inline: true },
       { name: 'Channels', value: String(backup.channels.length), inline: true }
-    ));
+    );
   
   await interaction.reply({ embeds: [embed], files: [attach] });
   

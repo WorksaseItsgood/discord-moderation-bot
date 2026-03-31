@@ -58,7 +58,7 @@ module.exports = {
         await interaction.reply('✅ Anti-Nuke enabled with default settings!');
         break;
         
-      case 'whitelist':
+      case 'whitelist': {
         const currentSettings = db.getAntiNukeSettings(guildId) || {};
         
         let whitelistRoles = currentSettings.whitelist_roles ? JSON.parse(currentSettings.whitelist_roles) : [];
@@ -84,8 +84,9 @@ module.exports = {
         
         await interaction.reply('✅ Whitelist updated!');
         break;
+      }
         
-      case 'status':
+      case 'status': {
         const settings = db.getAntiNukeSettings(guildId);
         
         if (!settings || !settings.enabled) {
@@ -111,6 +112,7 @@ module.exports = {
         
         await interaction.reply({ embeds: [embed], ephemeral: true });
         break;
+      }
         
       case 'disable':
         db.setAntiNukeSettings(guildId, {

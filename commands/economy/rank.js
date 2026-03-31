@@ -42,7 +42,7 @@ module.exports = {
         { name: 'XP', value: `${userData.xp} / ${nextLevelXP}`, inline: true },
         { name: 'Coins', value: `${userData.coins} 🪙`, inline: true },
         { name: 'Daily Streak', value: `${userData.streak} days 🔥`, inline: true }
-      ))
+      )
       .setDescription(`\n📊 Progress: [${progressBar}] ${progressPercent}%\n${xpProgress} XP / ${xpNeeded} XP to Level ${level + 1}`);
     
     await interaction.reply({ embeds: [embed] });

@@ -53,7 +53,7 @@ const rest = new REST({ version: '10' }).setToken(token);
       console.log(`[Deploy] Successfully reloaded ${data.length} global application commands.`);
     } else {
       // Get all guilds and register per guild
-      const { Client } = require('discord.js');
+      const { Client, GatewayIntentBits } = require('discord.js');
       const client = new Client({
         intents: [GatewayIntentBits.Guilds]
       });

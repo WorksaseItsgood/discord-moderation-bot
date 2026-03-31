@@ -304,7 +304,7 @@ async function handleViolation(message, client, action, reason) {
           { name: 'User', value: `${message.author} (${message.author.id})`, inline: true },
           { name: 'Action', value: action, inline: true },
           { name: 'Reason', value: reason, inline: true }
-        ));
+        );
       
       await logChannel.send({ embeds: [embed] }).catch(() => {});
     }
@@ -325,7 +325,7 @@ async function logMessage(message) {
     .addFields(
       { name: 'Author', value: `${message.author} (${message.author.id})`, inline: true },
       { name: 'Channel', value: message.channel.toString(), inline: true }
-    ))
+    )
     .setDescription(message.content.length > 1000 
       ? message.content.substring(0, 1000) + '...' 
       : message.content);

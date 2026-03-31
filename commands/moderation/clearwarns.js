@@ -42,7 +42,7 @@ module.exports = {
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Warnings Cleared', value: String(warningCount), inline: true },
         { name: 'Reason', value: reason, inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     

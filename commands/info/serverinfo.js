@@ -23,7 +23,7 @@ module.exports = {
         { name: 'Emojis', value: `${guild.emojis.cache.size}`, inline: true },
         { name: 'Verification', value: verificationLevel(guild.verificationLevel), inline: true },
         { name: ' nitro', value: guild.premiumTier === 0 ? 'None' : `Tier ${guild.premiumTier}`, inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
   }

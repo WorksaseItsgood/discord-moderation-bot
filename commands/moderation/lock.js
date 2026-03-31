@@ -41,7 +41,7 @@ module.exports = {
         .addFields(
           { name: 'Channel', value: channel.toString(), inline: true },
           { name: 'Reason', value: reason, inline: true }
-        ));
+        );
       
       await interaction.reply({ embeds: [embed] });
       

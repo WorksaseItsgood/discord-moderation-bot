@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { defaultConfig } = require('../config');
+const { defaultConfig } = require('../../config');
 
 // Mute command - supports timeout and role-based mute
 module.exports = {
@@ -90,7 +90,7 @@ module.exports = {
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Reason', value: reason, inline: true },
         { name: 'Duration', value: durationText, inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     

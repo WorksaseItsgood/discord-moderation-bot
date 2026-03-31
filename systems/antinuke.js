@@ -179,7 +179,7 @@ async function punishUser(guild, user, reason, action) {
           { name: 'User', value: `${user} (${user.id})`, inline: true },
           { name: 'Action', value: action, inline: true },
           { name: 'Reason', value: reason, inline: true }
-        ));
+        );
       
       await logChannel.send({ embeds: [embed] });
     }

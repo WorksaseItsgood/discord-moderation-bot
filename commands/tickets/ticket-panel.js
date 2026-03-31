@@ -16,18 +16,18 @@ module.exports = {
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Panel title')
-        .setDefault('🎫 Support Tickets')
+        .setRequired(false)
     )
     .addStringOption(option =>
       option.setName('description')
         .setDescription('Panel description')
-        .setDefault('Click a button to create a ticket')
+        .setRequired(false)
     ),
   
   async execute(interaction, client) {
     const channel = interaction.options.getChannel('channel');
-    const title = interaction.options.getString('title');
-    const description = interaction.options.getString('description');
+    const title = interaction.options.getString('title') || '🎫 Support Tickets';
+    const description = interaction.options.getString('description') || 'Click a button to create a ticket';
     const guildId = interaction.guildId;
     
     // Check permissions

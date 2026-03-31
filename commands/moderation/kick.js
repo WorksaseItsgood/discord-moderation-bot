@@ -16,8 +16,7 @@ module.exports = {
     .addBooleanOption(option =>
       option.setName('dm')
         .setDescription('DM the user about the kick')
-        .setRequired(false)
-        .setDefault(true)),
+        .setRequired(false)),
   permissions: [PermissionFlagsBits.KickMembers],
   async execute(interaction, client) {
     const user = interaction.options.getUser('user');
@@ -25,7 +24,7 @@ module.exports = {
     const dm = interaction.options.getBoolean('dm') ?? true;
     
     const member = interaction.guild.members.cache.get(user.id);
-    const guildConfig = require('../config').defaultConfig;
+    const guildConfig = require('../../config').defaultConfig;
     const dmOnAction = guildConfig.moderation?.dmOnAction ?? true;
     
     // Check if user is kickable
@@ -74,7 +73,7 @@ module.exports = {
       .addFields(
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Reason', value: reason, inline: true }
-      ));
+      );
     
     embed.addFields({ name: 'DM Sent', value: dm && dmOnAction ? '✅' : '❌' });
     

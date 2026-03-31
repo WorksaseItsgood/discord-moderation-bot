@@ -20,8 +20,7 @@ module.exports = {
     .addBooleanOption(option =>
       option.setName('dm')
         .setDescription('DM the user about the ban')
-        .setRequired(false)
-        .setDefault(true)),
+        .setRequired(false)),
   permissions: [PermissionFlagsBits.BanMembers],
   async execute(interaction, client) {
     const user = interaction.options.getUser('user');
@@ -30,7 +29,7 @@ module.exports = {
     const dm = interaction.options.getBoolean('dm') ?? true;
     
     const member = interaction.guild.members.cache.get(user.id);
-    const guildConfig = require('../config').defaultConfig;
+    const guildConfig = require('../../config').defaultConfig;
     const dmOnAction = guildConfig.moderation?.dmOnAction ?? true;
     
     // Calculate ban duration in milliseconds
@@ -125,7 +124,7 @@ module.exports = {
       .addFields(
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Reason', value: reason, inline: true }
-      ));
+      );
     
     if (duration) {
       embed.addFields({ name: 'Duration', value: duration, inline: true });

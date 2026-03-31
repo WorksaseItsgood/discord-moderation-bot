@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { defaultConfig } = require('../config');
+const { defaultConfig } = require('../../config');
 
 // Unmute command
 module.exports = {
@@ -57,7 +57,7 @@ module.exports = {
       .addFields(
         { name: 'User', value: `${user} (${user.id})`, inline: true },
         { name: 'Reason', value: reason, inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     

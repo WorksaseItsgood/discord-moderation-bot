@@ -38,7 +38,7 @@ module.exports = {
           { name: 'Channel', value: channel.toString(), inline: true },
           { name: 'Slowmode', value: slowmodeText, inline: true },
           { name: 'Reason', value: reason, inline: true }
-        ));
+        );
       
       await interaction.reply({ embeds: [embed] });
       

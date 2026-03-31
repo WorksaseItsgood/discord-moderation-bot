@@ -265,7 +265,7 @@ async function triggerRaidAlert(guild, raidInfo, client) {
       { name: 'Type', value: raidInfo.type, inline: true },
       { name: 'Joins/Sec', value: String(raidInfo.joinsPerSecond || raidInfo.joins), inline: true },
       { name: 'Action', value: 'Lockdown Enabled', inline: true }
-    ))
+    )
     .setTimestamp();
   
   // Send to raid log channel
@@ -318,7 +318,7 @@ async function takeRiskAction(member, riskScore, config, client) {
           .addFields(
             { name: 'Server', value: member.guild.name },
             { name: 'Risk Score', value: String(riskScore) }
-          ));
+          );
         
         await member.send({ embeds: warnEmbed }).catch(() => {});
         break;
@@ -350,7 +350,7 @@ async function takeRiskAction(member, riskScore, config, client) {
           { name: 'User', value: `${member.user} (${member.user.id})`, inline: true },
           { name: 'Risk Score', value: String(riskScore), inline: true },
           { name: 'Action', value: action, inline: true }
-        ));
+        );
       
       logChannel.send({ embeds: [actionEmbed] }).catch(() => {});
     }

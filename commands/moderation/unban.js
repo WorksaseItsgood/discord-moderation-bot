@@ -55,7 +55,7 @@ module.exports = {
       .addFields(
         { name: 'User', value: `${userTag} (${userId})`, inline: true },
         { name: 'Reason', value: reason, inline: true }
-      ));
+      );
     
     await interaction.reply({ embeds: [embed] });
     
