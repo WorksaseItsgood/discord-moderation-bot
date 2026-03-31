@@ -20,7 +20,11 @@ if (!token) {
 
 // Collect all commands
 const commands = [];
-const commandFolders = ['moderation', 'config', 'info'];
+const commandFolders = [
+  'moderation', 'config', 'info', 'utility', 'fun', 'game',
+  'economy', 'music', 'tickets', 'verification',
+  'giveaway', 'suggestion', 'welcome', 'starboard'
+];
 
 for (const folder of commandFolders) {
   const commandPath = path.join(__dirname, 'commands', folder);

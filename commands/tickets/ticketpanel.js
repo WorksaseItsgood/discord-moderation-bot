@@ -19,7 +19,7 @@ module.exports = {
       .setColor(0x00ff00)
       .addFields(
         { name: 'How it works', value: 'Click the button below to open a ticket. Our team will respond as soon as possible!' }
-      );
+      )
     
     const row = new ActionRowBuilder()
       .addComponents(
