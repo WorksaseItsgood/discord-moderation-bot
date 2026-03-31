@@ -1,87 +1,35 @@
 /**
- * Gamble Command - Gamble your coins for a chance to win more
+ * Gamble Command
  */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const db = require('../../database');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('gamble')
-    .setDescription('Gamble your coins for a chance to win more')
-    .addIntegerOption(option =>
-      option.setName('amount')
-        .setDescription('Amount to gamble (or all for all-in)')
-        .setRequired(true)
-    ),
+    .setDescription('Gamble your coins')
+    .addIntegerOption(option => option.setName('bet').setDescription('Bet amount').setRequired(true)),
   
   async execute(interaction, client) {
-    const userId = interaction.user.id;
-    const guildId = interaction.guildId;
-    const amount = interaction.options.getInteger('amount');
+    const bet = interaction.options.getInteger('bet');
+    const user = interaction.user;
+    const balance = db.getBalance(user.id);
     
-    // Get user data
-    const userData = client.dbManager.getOrCreateUser(userId, guildId);
-    
-    // Validation
-    if (amount <= 0) {
-      return interaction.reply({ content: 'Amount must be positive!', ephemeral: true });
+    if (bet > balance) {
+      return interaction.reply({ content: '❌ Not enough coins!', ephemeral: true });
     }
     
-    if (amount > userData.balance) {
-      return interaction.reply({ content: `You only have ${userData.balance} coins!`, ephemeral: true });
+    db.removeBalance(user.id, bet);
+    const win = Math.random() > 0.5;
+    const multiplier = Math.random() * 3 + 1;
+    
+    if (win) {
+      const winnings = Math.floor(bet * multiplier);
+      db.addBalance(user.id, winnings);
+      return interaction.reply({ content: `🎰 You won **${winnings}** coins! (x${multiplier.toFixed(1)})` });
     }
     
-    // Check cooldown (30 seconds)
-    const cooldownMs = 30 * 1000;
-    const remaining = client.dbManager.getCooldown(userId, guildId, 'gamble');
-    
-    if (remaining > 0) {
-      const seconds = Math.floor(remaining / 1000);
-      return interaction.reply({ content: `Wait ${seconds}s before gambling again!`, ephemeral: true });
-    }
-    
-    // Gambling odds (40% win, 60% lose)
-    const winChance = 0.4;
-    const won = Math.random() < winChance;
-    
-    if (won) {
-      // Win! Multiply the bet (1.5x to 3x)
-      const multiplier = 1.5 + Math.random() * 1.5;
-      const winnings = Math.floor(amount * multiplier);
-      
-      client.dbManager.updateBalance(userId, guildId, winnings);
-      client.dbManager.updateXP(userId, guildId, 50);
-      
-      const embed = new EmbedBuilder()
-        .setTitle('🎉 YOU WON!')
-        .setDescription(`You won **${winnings} coins**!`)
-        .addFields(
-          { name: '🎯 Bet', value: `${amount}`, inline: true },
-          { name: '📈 Multiplier', value: `${multiplier.toFixed(2)}x`, inline: true },
-          { name: '💰 Profit', value: `+${winnings}`, inline: true }
-        )
-        .setColor(0x00ff00);
-      
-      await interaction.reply({ embeds: [embed] });
-    } else {
-      // Lose!
-      client.dbManager.updateBalance(userId, guildId, -amount);
-      client.dbManager.updateXP(userId, guildId, 10);
-      
-      const embed = new EmbedBuilder()
-        .setTitle('💸 YOU LOST!')
-        .setDescription(`You lost **${amount} coins**!`)
-        .addFields(
-          { name: '🎯 Bet', value: `${amount}`, inline: true },
-          { name: '💰 Lost', value: `-${amount}`, inline: true },
-          { name: '📊 New Balance', value: `${userData.balance - amount}`, inline: true }
-        )
-        .setColor(0xff0000);
-      
-      await interaction.reply({ embeds: [embed] });
-    }
-    
-    // Set cooldown
-    client.dbManager.setCooldown(userId, guildId, 'gamble', cooldownMs);
+    await interaction.reply({ content: '🎰 You lost! Better luck next time.' });
   }
 };

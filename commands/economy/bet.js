@@ -1,53 +1,34 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+/**
+ * Bet Command
+ */
 
-// Bet command - Bet on something
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const db = require('../../database');
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('bet')
-    .setDescription('Bet on an outcome')
-    .addStringOption(option =>
-      option.setName('prediction')
-        .setDescription('Your prediction')
-        .setRequired(true))
-    .addIntegerOption(option =>
-      option.setName('amount')
-        .setDescription('Bet amount')
-        .setRequired(true)
-        .setMinValue(10)),
+    .setDescription('Make a bet on any outcome')
+    .addStringOption(option => option.setName('prediction').setDescription('Your prediction').setRequired(true))
+    .addIntegerOption(option => option.setName('amount').setDescription('Amount').setRequired(true)),
+  
   async execute(interaction, client) {
     const prediction = interaction.options.getString('prediction');
     const amount = interaction.options.getInteger('amount');
-    const userId = interaction.user.id;
+    const user = interaction.user;
     
-    if (!client.economy) client.economy = new Map();
-    const balance = client.economy.get(userId) || 0;
-    
-    if (balance < amount) {
-      return interaction.reply({ content: 'Insufficient balance!', ephemeral: true });
+    if (db.getBalance(user.id) < amount) {
+      return interaction.reply({ content: '❌ Not enough coins!', ephemeral: true });
     }
     
-    // Random outcome
-    const won = Math.random() > 0.5;
-    const multiplier = 2;
-    let newBalance;
+    db.removeBalance(user.id, amount);
+    const outcome = Math.random() > 0.5;
     
-    if (won) {
-      newBalance = balance - amount + (amount * multiplier);
-    } else {
-      newBalance = balance - amount;
+    if (outcome) {
+      db.addBalance(user.id, amount * 2);
+      return interaction.reply({ content: `🎯 Your prediction was right! You won **${amount * 2}** coins!` });
     }
     
-    client.economy.set(userId, newBalance);
-    
-    const embed = new EmbedBuilder()
-      .setTitle('🎲 Bet Result')
-      .setColor(won ? 0x2ecc71 : 0xe74c3c)
-      .setDescription('Prediction: ' + prediction)
-      .addFields([
-        { name: 'Result', value: won ? 'WON +' + amount + '!' : 'LOST ' + amount + '!', inline: true },
-        { name: 'New Balance', value: String(newBalance), inline: true }
-      ]);
-    
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ content: `❌ "${prediction}" was wrong. You lost ${amount} coins.` });
   }
 };

@@ -1,23 +1,21 @@
-const { SlashCommandBuilder } = require('discord.js');
+/**
+ * Server Icon Command
+ */
+
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('servericon')
     .setDescription('Get server icon'),
-  async execute(interaction) {
+  
+  async execute(interaction, client) {
     const guild = interaction.guild;
-    const icon = guild.iconURL();
     
-    if (!icon) {
-      return interaction.reply({ content: 'This server has no icon!', ephemeral: true });
+    if (guild.icon) {
+      await interaction.reply({ content: `📷 Server Icon: ${guild.iconURL()}` });
+    } else {
+      await interaction.reply({ content: '❌ This server has no icon!' });
     }
-    
-    const embed = {
-      title: `🏠 ${guild.name} Icon`,
-      image: { url: icon },
-      color: 0x5865F2,
-    };
-
-    await interaction.reply({ embeds: [embed] });
-  },
+  }
 };
