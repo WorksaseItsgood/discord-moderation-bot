@@ -1,70 +1,63 @@
-/**
- * Leaderboard Command - Show server economy leaderboard
- */
-
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
+// Leaderboard command - Extended economy leaderboard
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('leaderboard')
-    .setDescription('Show the server economy leaderboard')
+    .setDescription('View the server leaderboard')
     .addStringOption(option =>
       option.setName('type')
-        .setDescription('Leaderboard type')
-        .addChoices(
-          { name: 'Balance', value: 'balance' },
-          { name: 'XP', value: 'xp' },
-          { name: 'Level', value: 'level' }
-        )
-    )
-    .addIntegerOption(option =>
-      option.setName('limit')
-        .setDescription('Number of users to show (default 10)')
-    ),
-  
+        .setDescription('Leaderboard type (balance, xp, warnings)')
+        .setRequired(false)),
   async execute(interaction, client) {
     const type = interaction.options.getString('type') || 'balance';
-    const limit = Math.min(interaction.options.getInteger('limit') || 10, 25);
-    const guildId = interaction.guildId;
     
-    // Get leaderboard
-    const leaderboard = client.dbManager.getLeaderboard(guildId, type, limit);
+    let leaderboard = [];
+    
+    if (type === 'balance') {
+      if (!client.economy) client.economy = new Map();
+      for (const [userId, balance] of client.economy) {
+        const user = await interaction.client.users.fetch(userId).catch(() => null);
+        if (user) leaderboard.push({ user, balance });
+      }
+      leaderboard.sort((a, b) => b.balance - a.balance);
+    } else if (type === 'xp') {
+      if (!client.xp) client.xp = new Map();
+      for (const [userId, data] of client.xp) {
+        const user = await interaction.client.users.fetch(userId).catch(() => null);
+        if (user) leaderboard.push({ user, xp: data.xp, level: data.level });
+      }
+      leaderboard.sort((a, b) => b.xp - a.xp);
+    } else if (type === 'warnings') {
+      if (!client.warnings) client.warnings = new Map();
+      const guildWarnings = client.warnings.get(interaction.guild.id) || [];
+      const warningCounts = {};
+      for (const w of guildWarnings) {
+        warningCounts[w.userId] = (warningCounts[w.userId] || 0) + 1;
+      }
+      for (const [userId, count] of Object.entries(warningCounts)) {
+        const user = await interaction.client.users.fetch(userId).catch(() => null);
+        if (user) leaderboard.push({ user, count });
+      }
+      leaderboard.sort((a, b) => b.count - a.count);
+    }
     
     if (leaderboard.length === 0) {
-      return interaction.reply({ content: 'No users on the leaderboard yet!', ephemeral: true });
+      return interaction.reply({ content: 'No data yet!', ephemeral: true });
     }
     
-    // Build leaderboard embed
-    const embed = new EmbedBuilder()
-      .setTitle(`🏆 ${type.charAt(0).toUpperCase() + type.slice(1)} Leaderboard`)
-      .setColor(0xffd700);
-    
+    const top10 = leaderboard.slice(0, 10);
     let description = '';
-    let position = 1;
-    
-    for (const user of leaderboard) {
-      const member = await interaction.guild.members.fetch(user.user_id).catch(() => null);
-      const username = member ? member.user.username : 'Unknown User';
-      
-      let value;
-      switch (type) {
-        case 'xp':
-          value = `${user.xp} XP (Level ${user.level})`;
-          break;
-        case 'level':
-          value = `Level ${user.level}`;
-          break;
-        default:
-          value = `${user.balance} coins`;
-      }
-      
-      const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : `${position}.`;
-      description += `**${medal} ${username}**\n${value}\n\n`;
-      
-      position++;
+    for (let i = 0; i < top10.length; i++) {
+      const entry = top10[i];
+      description += (i + 1) + '. ' + entry.user.username + ' - ' + (entry.balance || entry.xp || entry.count) + '\n';
     }
     
-    embed.setDescription(description);
+    const typeNames = { balance: 'Balance', xp: 'XP', warnings: 'Warnings' };
+    const embed = new EmbedBuilder()
+      .setTitle(typeNames[type] + ' Leaderboard')
+      .setColor(0xffd700)
+      .setDescription(description);
     
     await interaction.reply({ embeds: [embed] });
   }
