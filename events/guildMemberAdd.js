@@ -1,82 +1,45 @@
-/**
- * Welcome Event - Welcome new members with beautiful embed
- */
-
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { welcome, COLORS } = require('../utils/embedTemplates');
-const { confirmButton } = require('../utils/buttonComponents');
+const { AuditLogEvent } = require('discord.js');
 
 module.exports = {
   name: 'guildMemberAdd',
-  
-  async execute(member, client) {
-    const guild = member.guild;
-    const botAvatar = client.user?.displayAvatarURL() || 'https://cdn.discordapp.com/embed/avatars/0.png';
-    
-    // Get welcome channel
-    const welcomeChannel = guild.channels.cache.find(ch => 
-      ch.name === 'welcome' || ch.name === 'welcomes' || ch.name === 'greeting'
-    );
-    
-    if (!welcomeChannel) return;
-    
-    // Get member count
-    const memberCount = guild.members.cache.size;
-    
-    // Get welcome settings (from database if available)
-    const welcomeSettings = client.welcomeSettings?.get(guild.id) || {};
-    
-    // Create welcome embed
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.success)
-      .setAuthor({
-        name: '🎉 Welcome!',
-        iconURL: botAvatar
-      })
-      .setTitle(`Welcome to ${guild.name}!`)
-      .setDescription(`Hey **${member.user.username}**! We're so glad you're here.`)
-      .setThumbnail(member.displayAvatarURL())
-      .setImage(guild.iconURL())
-      .setFooter({
-        text: `Member #${memberCount} • ${client.user?.username || 'Bot'}`,
-        iconURL: botAvatar
-      })
-      .setTimestamp()
-      .addFields(
-        { name: '👤 Welcome!', value: 'Please read the rules and have fun!', inline: false },
-        { name: '📋 Rules', value: 'Check out the rules channel to avoid issues!', inline: true },
-        { name: '💬 Introduce', value: 'Tell us about yourself in the chat!', inline: true },
-        { name: '🎉 Member Count', value: `**${memberCount}** members`, inline: false }
-      );
-    
-    // Add role button if configured
-    let components = [];
-    if (welcomeSettings.autoRole) {
-      const roleButton = new ActionRowBuilder()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId('welcome-roles')
-            .setLabel('🎭 Get Roles')
-            .setStyle(ButtonStyle.Primary)
-        );
-      components = [roleButton];
-    }
-    
-    await welcomeChannel.send({
-      content: `Welcome ${member}! 🎉`,
-      embeds: [embed],
-      components
-    });
-    
-    // Auto_assign role if configured
-    if (welcomeSettings.autoRole) {
-      const role = guild.roles.cache.get(welcomeSettings.autoRole);
-      if (role) {
+  event: 'guildMemberAdd',
+
+  async execute(member) {
+    const client = member.client;
+    const raidConfig = client.raidConfig?.get(member.guild.id);
+    if (!raidConfig?.enabled) return;
+
+    // Anti-bot-add: kick bots that aren't whitelisted
+    if (member.user.bot) {
+      const whitelist = raidConfig.whitelist || [];
+      if (whitelist.includes(member.user.id)) return;
+
+      // Check if this bot was invited during raid mode
+      const fetchedLogs = await member.guild.fetchAuditLogs({ 
+        limit: 5, 
+        type: AuditLogEvent.BotAdd 
+      });
+      const botAddLog = fetchedLogs.entries.find(e => e.target?.id === member.user.id);
+      const executor = botAddLog?.executor;
+
+      const whitelistExecutors = raidConfig.whitelist || [];
+      if (executor && !whitelistExecutors.includes(executor.id)) {
         try {
-          await member.roles.add(role);
-          console.log(`[Welcome] Added role ${role.name} to ${member.user.username}`);
+          await member.kick('🔒 Anti-Raid: Bot non autorisé ajouté pendant le raid');
+
+          const logChannel = member.guild.channels.cache.find(ch => ch.name === 'anti-raid-logs');
+          if (logChannel) {
+            const { EmbedBuilder } = require('discord.js');
+            const embed = new EmbedBuilder()
+              .setTitle('🤖 Bot Non Autorisé Kické')
+              .setColor(0xff0000)
+              .setDescription(`**Bot:** ${member.user.tag}\n**Ajouté par:** ${executor.tag}\n**Raison:** Anti-Raid actif`)
+              .setTimestamp()
+              .setFooter({ text: 'UltraAntiRaid v2' });
+            await logChannel.send({ embeds: [embed] });
+          }
         } catch (err) {
-          console.error(`[Welcome] Error adding role:`, err.message);
+          console.error(`[UltraAntiRaid] Impossible de kicker le bot: ${err.message}`);
         }
       }
     }
