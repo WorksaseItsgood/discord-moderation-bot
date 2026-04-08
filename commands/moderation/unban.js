@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'unban',
-  description: '🔓 unban',
+  description: '🔓 Débannit un membre',
+  data: new SlashCommandBuilder()
+    .setName('unban')
+    .setDescription('Débannit un membre'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔓 UNBAN')
       .setColor(65280)
-      .setDescription('Commande: unban')
+      .setDescription('Commande: Débannit un membre')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'unban', inline: true }

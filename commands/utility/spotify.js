@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'spotify',
-  description: '🎵 spotify',
+  description: '🎵 Info chanson Spotify',
+  data: new SlashCommandBuilder()
+    .setName('spotify')
+    .setDescription('Info chanson Spotify'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎵 SPOTIFY')
       .setColor(65280)
-      .setDescription('Commande: spotify')
+      .setDescription('Commande: Info chanson Spotify')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'spotify', inline: true }

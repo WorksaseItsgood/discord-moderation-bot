@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'removeall',
-  description: '❌ removeall',
+  description: '❌ Retire tous les rôles',
+  data: new SlashCommandBuilder()
+    .setName('removeall')
+    .setDescription('Retire tous les rôles'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('❌ REMOVEALL')
       .setColor(16711680)
-      .setDescription('Commande: removeall')
+      .setDescription('Commande: Retire tous les rôles')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'removeall', inline: true }

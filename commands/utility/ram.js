@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'ram',
-  description: '💾 ram',
+  description: '💾 Utilisation RAM',
+  data: new SlashCommandBuilder()
+    .setName('ram')
+    .setDescription('Utilisation RAM'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('💾 RAM')
       .setColor(65280)
-      .setDescription('Commande: ram')
+      .setDescription('Commande: Utilisation RAM')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'ram', inline: true }

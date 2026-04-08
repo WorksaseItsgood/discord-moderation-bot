@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'raidmode',
-  description: '🛡️ raidmode',
+  description: '🛡️ Active le mode raid',
+  data: new SlashCommandBuilder()
+    .setName('raidmode')
+    .setDescription('Active le mode raid'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🛡️ RAIDMODE')
       .setColor(16711680)
-      .setDescription('Commande: raidmode')
+      .setDescription('Commande: Active le mode raid')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'raidmode', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'crypto',
-  description: '💰 crypto',
+  description: '💰 Prix des cryptos',
+  data: new SlashCommandBuilder()
+    .setName('crypto')
+    .setDescription('Prix des cryptos'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('💰 CRYPTO')
       .setColor(16755200)
-      .setDescription('Commande: crypto')
+      .setDescription('Commande: Prix des cryptos')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'crypto', inline: true }

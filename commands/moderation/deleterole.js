@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'deleterole',
-  description: '🎨 deleterole',
+  description: '🎨 Supprime un rôle',
+  data: new SlashCommandBuilder()
+    .setName('deleterole')
+    .setDescription('Supprime un rôle'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎨 DELETEROLE')
       .setColor(16711680)
-      .setDescription('Commande: deleterole')
+      .setDescription('Commande: Supprime un rôle')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'deleterole', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'unmute',
-  description: '🔊 unmute',
+  description: '🔊 Redonne la parole à un membre',
+  data: new SlashCommandBuilder()
+    .setName('unmute')
+    .setDescription('Redonne la parole à un membre'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔊 UNMUTE')
       .setColor(65280)
-      .setDescription('Commande: unmute')
+      .setDescription('Commande: Redonne la parole à un membre')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'unmute', inline: true }

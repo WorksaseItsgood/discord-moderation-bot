@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'antispam',
-  description: '🛡️ antispam',
+  description: '🛡️ Config anti-spam',
+  data: new SlashCommandBuilder()
+    .setName('antispam')
+    .setDescription('Config anti-spam'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🛡️ ANTISPAM')
       .setColor(16711680)
-      .setDescription('Commande: antispam')
+      .setDescription('Commande: Config anti-spam')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'antispam', inline: true }

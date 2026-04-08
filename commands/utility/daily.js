@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'daily',
-  description: '🎁 daily',
+  description: '🎁 Réclamer daily',
+  data: new SlashCommandBuilder()
+    .setName('daily')
+    .setDescription('Réclamer daily'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎁 DAILY')
       .setColor(16755200)
-      .setDescription('Commande: daily')
+      .setDescription('Commande: Réclamer daily')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'daily', inline: true }

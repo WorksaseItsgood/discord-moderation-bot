@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'unwarn',
-  description: '✅ unwarn',
+  description: '✅ Retire un avertissement',
+  data: new SlashCommandBuilder()
+    .setName('unwarn')
+    .setDescription('Retire un avertissement'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('✅ UNWARN')
       .setColor(65280)
-      .setDescription('Commande: unwarn')
+      .setDescription('Commande: Retire un avertissement')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'unwarn', inline: true }

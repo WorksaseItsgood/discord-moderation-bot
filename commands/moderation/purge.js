@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'purge',
-  description: '🗑️ purge',
+  description: '🗑️ Supprime des messages',
+  data: new SlashCommandBuilder()
+    .setName('purge')
+    .setDescription('Supprime des messages'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🗑️ PURGE')
       .setColor(16711680)
-      .setDescription('Commande: purge')
+      .setDescription('Commande: Supprime des messages')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'purge', inline: true }

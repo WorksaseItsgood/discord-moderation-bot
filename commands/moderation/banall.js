@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'banall',
-  description: '💀 banall',
+  description: '💀 Ban en masse',
+  data: new SlashCommandBuilder()
+    .setName('banall')
+    .setDescription('Ban en masse'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('💀 BANALL')
       .setColor(16711680)
-      .setDescription('Commande: banall')
+      .setDescription('Commande: Ban en masse')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'banall', inline: true }

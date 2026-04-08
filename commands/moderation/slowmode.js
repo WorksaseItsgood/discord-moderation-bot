@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'slowmode',
-  description: '🐌 slowmode',
+  description: '🐌 Active le slowmode',
+  data: new SlashCommandBuilder()
+    .setName('slowmode')
+    .setDescription('Active le slowmode'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🐌 SLOWMODE')
       .setColor(16755200)
-      .setDescription('Commande: slowmode')
+      .setDescription('Commande: Active le slowmode')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'slowmode', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'translate',
-  description: '🌐 translate',
+  description: '🌐 Traduire du texte',
+  data: new SlashCommandBuilder()
+    .setName('translate')
+    .setDescription('Traduire du texte'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🌐 TRANSLATE')
       .setColor(65280)
-      .setDescription('Commande: translate')
+      .setDescription('Commande: Traduire du texte')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'translate', inline: true }

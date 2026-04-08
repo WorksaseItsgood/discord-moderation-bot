@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'reroll',
-  description: '🎲 reroll',
+  description: '🎲 Relancer un giveaway',
+  data: new SlashCommandBuilder()
+    .setName('reroll')
+    .setDescription('Relancer un giveaway'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎲 REROLL')
       .setColor(16711935)
-      .setDescription('Commande: reroll')
+      .setDescription('Commande: Relancer un giveaway')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'reroll', inline: true }

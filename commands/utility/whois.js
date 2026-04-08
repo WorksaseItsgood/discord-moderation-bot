@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'whois',
-  description: '🔍 whois',
+  description: '🔍 Recherche un utilisateur',
+  data: new SlashCommandBuilder()
+    .setName('whois')
+    .setDescription('Recherche un utilisateur'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔍 WHOIS')
       .setColor(5793266)
-      .setDescription('Commande: whois')
+      .setDescription('Commande: Recherche un utilisateur')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'whois', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'emoji',
-  description: '😀 emoji',
+  description: '😀 Ajoute un émoji',
+  data: new SlashCommandBuilder()
+    .setName('emoji')
+    .setDescription('Ajoute un émoji'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('😀 EMOJI')
       .setColor(5793266)
-      .setDescription('Commande: emoji')
+      .setDescription('Commande: Ajoute un émoji')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'emoji', inline: true }

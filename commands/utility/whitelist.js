@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'whitelist',
-  description: '✅ whitelist',
+  description: '✅ Whitelist anti-raid',
+  data: new SlashCommandBuilder()
+    .setName('whitelist')
+    .setDescription('Whitelist anti-raid'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('✅ WHITELIST')
       .setColor(65280)
-      .setDescription('Commande: whitelist')
+      .setDescription('Commande: Whitelist anti-raid')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'whitelist', inline: true }

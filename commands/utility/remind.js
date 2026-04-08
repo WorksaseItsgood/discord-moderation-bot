@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'remind',
-  description: '🔔 remind',
+  description: '🔔 Rappel',
+  data: new SlashCommandBuilder()
+    .setName('remind')
+    .setDescription('Rappel'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔔 REMIND')
       .setColor(16755200)
-      .setDescription('Commande: remind')
+      .setDescription('Commande: Rappel')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'remind', inline: true }

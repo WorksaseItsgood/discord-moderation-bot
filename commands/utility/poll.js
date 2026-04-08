@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'poll',
-  description: '📊 poll',
+  description: '📊 Créer un sondage',
+  data: new SlashCommandBuilder()
+    .setName('poll')
+    .setDescription('Créer un sondage'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('📊 POLL')
       .setColor(5793266)
-      .setDescription('Commande: poll')
+      .setDescription('Commande: Créer un sondage')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'poll', inline: true }

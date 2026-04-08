@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'undeafen',
-  description: '🔊 undeafen',
+  description: '🔊 Retire la surdité',
+  data: new SlashCommandBuilder()
+    .setName('undeafen')
+    .setDescription('Retire la surdité'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔊 UNDEAFEN')
       .setColor(65280)
-      .setDescription('Commande: undeafen')
+      .setDescription('Commande: Retire la surdité')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'undeafen', inline: true }

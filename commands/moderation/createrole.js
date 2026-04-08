@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'createrole',
-  description: '🎨 createrole',
+  description: '🎨 Crée un rôle',
+  data: new SlashCommandBuilder()
+    .setName('createrole')
+    .setDescription('Crée un rôle'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎨 CREATEROLE')
       .setColor(65280)
-      .setDescription('Commande: createrole')
+      .setDescription('Commande: Crée un rôle')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'createrole', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'say',
-  description: '💬 say',
+  description: '💬 Faire parler le bot',
+  data: new SlashCommandBuilder()
+    .setName('say')
+    .setDescription('Faire parler le bot'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('💬 SAY')
       .setColor(5793266)
-      .setDescription('Commande: say')
+      .setDescription('Commande: Faire parler le bot')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'say', inline: true }

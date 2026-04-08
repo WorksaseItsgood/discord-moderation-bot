@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'lockdown',
-  description: '🔒 lockdown',
+  description: '🔒 Verrouille tous les salons',
+  data: new SlashCommandBuilder()
+    .setName('lockdown')
+    .setDescription('Verrouille tous les salons'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔒 LOCKDOWN')
       .setColor(16711680)
-      .setDescription('Commande: lockdown')
+      .setDescription('Commande: Verrouille tous les salons')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'lockdown', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'unhide',
-  description: '👁️ unhide',
+  description: '👁️ Affiche un salon',
+  data: new SlashCommandBuilder()
+    .setName('unhide')
+    .setDescription('Affiche un salon'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('👁️ UNHIDE')
       .setColor(65280)
-      .setDescription('Commande: unhide')
+      .setDescription('Commande: Affiche un salon')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'unhide', inline: true }

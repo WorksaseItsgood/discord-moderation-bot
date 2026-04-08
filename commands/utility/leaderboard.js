@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'leaderboard',
-  description: '📈 leaderboard',
+  description: '📈 Classement',
+  data: new SlashCommandBuilder()
+    .setName('leaderboard')
+    .setDescription('Classement'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('📈 LEADERBOARD')
       .setColor(16755200)
-      .setDescription('Commande: leaderboard')
+      .setDescription('Commande: Classement')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'leaderboard', inline: true }

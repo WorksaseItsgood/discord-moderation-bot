@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'shorturl',
-  description: '🔗 shorturl',
+  description: '🔗 Raccourcir une URL',
+  data: new SlashCommandBuilder()
+    .setName('shorturl')
+    .setDescription('Raccourcir une URL'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔗 SHORTURL')
       .setColor(5793266)
-      .setDescription('Commande: shorturl')
+      .setDescription('Commande: Raccourcir une URL')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'shorturl', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'massmute',
-  description: '🔇 massmute',
+  description: '🔇 Mute en masse',
+  data: new SlashCommandBuilder()
+    .setName('massmute')
+    .setDescription('Mute en masse'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔇 MASSMUTE')
       .setColor(16755200)
-      .setDescription('Commande: massmute')
+      .setDescription('Commande: Mute en masse')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'massmute', inline: true }

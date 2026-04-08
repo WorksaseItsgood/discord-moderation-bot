@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'verify',
-  description: '✅ verify',
+  description: '✅ Système de vérification',
+  data: new SlashCommandBuilder()
+    .setName('verify')
+    .setDescription('Système de vérification'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('✅ VERIFY')
       .setColor(65280)
-      .setDescription('Commande: verify')
+      .setDescription('Commande: Système de vérification')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'verify', inline: true }

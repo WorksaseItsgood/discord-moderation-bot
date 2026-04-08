@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'steam',
-  description: '🎮 steam',
+  description: '🎮 Info jeu Steam',
+  data: new SlashCommandBuilder()
+    .setName('steam')
+    .setDescription('Info jeu Steam'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎮 STEAM')
       .setColor(5793266)
-      .setDescription('Commande: steam')
+      .setDescription('Commande: Info jeu Steam')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'steam', inline: true }

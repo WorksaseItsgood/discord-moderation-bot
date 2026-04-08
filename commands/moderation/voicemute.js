@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'voicemute',
-  description: '🔇 voicemute',
+  description: '🔇 Mute en vocal',
+  data: new SlashCommandBuilder()
+    .setName('voicemute')
+    .setDescription('Mute en vocal'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔇 VOICEMUTE')
       .setColor(16755200)
-      .setDescription('Commande: voicemute')
+      .setDescription('Commande: Mute en vocal')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'voicemute', inline: true }

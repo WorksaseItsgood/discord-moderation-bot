@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'shardinfo',
-  description: '🔀 shardinfo',
+  description: '🔀 Info shards',
+  data: new SlashCommandBuilder()
+    .setName('shardinfo')
+    .setDescription('Info shards'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔀 SHARDINFO')
       .setColor(5793266)
-      .setDescription('Commande: shardinfo')
+      .setDescription('Commande: Info shards')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'shardinfo', inline: true }

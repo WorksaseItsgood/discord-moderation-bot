@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'unlock',
-  description: '🔓 unlock',
+  description: '🔓 Déverrouille un salon',
+  data: new SlashCommandBuilder()
+    .setName('unlock')
+    .setDescription('Déverrouille un salon'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🔓 UNLOCK')
       .setColor(65280)
-      .setDescription('Commande: unlock')
+      .setDescription('Commande: Déverrouille un salon')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'unlock', inline: true }

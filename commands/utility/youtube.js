@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'youtube',
-  description: '▶️ youtube',
+  description: '▶️ Info vidéo YouTube',
+  data: new SlashCommandBuilder()
+    .setName('youtube')
+    .setDescription('Info vidéo YouTube'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('▶️ YOUTUBE')
       .setColor(16711680)
-      .setDescription('Commande: youtube')
+      .setDescription('Commande: Info vidéo YouTube')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'youtube', inline: true }

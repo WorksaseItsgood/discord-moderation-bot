@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'deletechannel',
-  description: '➖ deletechannel',
+  description: '➖ Supprime un salon',
+  data: new SlashCommandBuilder()
+    .setName('deletechannel')
+    .setDescription('Supprime un salon'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('➖ DELETECHANNEL')
       .setColor(16711680)
-      .setDescription('Commande: deletechannel')
+      .setDescription('Commande: Supprime un salon')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'deletechannel', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'timer',
-  description: '⏰ timer',
+  description: '⏰ Minuterie',
+  data: new SlashCommandBuilder()
+    .setName('timer')
+    .setDescription('Minuterie'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('⏰ TIMER')
       .setColor(16755200)
-      .setDescription('Commande: timer')
+      .setDescription('Commande: Minuterie')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'timer', inline: true }

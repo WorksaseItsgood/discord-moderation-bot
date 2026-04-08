@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'giveaway',
-  description: '🎉 giveaway',
+  description: '🎉 Créer un giveaway',
+  data: new SlashCommandBuilder()
+    .setName('giveaway')
+    .setDescription('Créer un giveaway'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎉 GIVEAWAY')
       .setColor(16711935)
-      .setDescription('Commande: giveaway')
+      .setDescription('Commande: Créer un giveaway')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'giveaway', inline: true }

@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'roleall',
-  description: '🎭 roleall',
+  description: '🎭 Ajoute rôle à tous',
+  data: new SlashCommandBuilder()
+    .setName('roleall')
+    .setDescription('Ajoute rôle à tous'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🎭 ROLEALL')
       .setColor(5793266)
-      .setDescription('Commande: roleall')
+      .setDescription('Commande: Ajoute rôle à tous')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'roleall', inline: true }

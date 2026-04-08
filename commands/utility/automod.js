@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'automod',
-  description: '🤖 automod',
+  description: '🤖 Config auto-mod',
+  data: new SlashCommandBuilder()
+    .setName('automod')
+    .setDescription('Config auto-mod'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('🤖 AUTOMOD')
       .setColor(16711680)
-      .setDescription('Commande: automod')
+      .setDescription('Commande: Config auto-mod')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'automod', inline: true }

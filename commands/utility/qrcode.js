@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'qrcode',
-  description: '📱 qrcode',
+  description: '📱 Générer un QR code',
+  data: new SlashCommandBuilder()
+    .setName('qrcode')
+    .setDescription('Générer un QR code'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('📱 QRCODE')
       .setColor(5793266)
-      .setDescription('Commande: qrcode')
+      .setDescription('Commande: Générer un QR code')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'qrcode', inline: true }

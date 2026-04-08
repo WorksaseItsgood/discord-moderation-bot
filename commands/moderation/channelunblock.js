@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'channelunblock',
-  description: '✅ channelunblock',
+  description: '✅ Débloque un salon',
+  data: new SlashCommandBuilder()
+    .setName('channelunblock')
+    .setDescription('Débloque un salon'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('✅ CHANNELUNBLOCK')
       .setColor(65280)
-      .setDescription('Commande: channelunblock')
+      .setDescription('Commande: Débloque un salon')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'channelunblock', inline: true }

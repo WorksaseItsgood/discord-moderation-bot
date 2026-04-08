@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'afk',
-  description: '😴 afk',
+  description: '😴 Mode AFK',
+  data: new SlashCommandBuilder()
+    .setName('afk')
+    .setDescription('Mode AFK'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('😴 AFK')
       .setColor(16755200)
-      .setDescription('Commande: afk')
+      .setDescription('Commande: Mode AFK')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'afk', inline: true }

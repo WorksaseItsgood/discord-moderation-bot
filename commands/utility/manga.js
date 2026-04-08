@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'manga',
-  description: '📖 manga',
+  description: '📖 Info manga',
+  data: new SlashCommandBuilder()
+    .setName('manga')
+    .setDescription('Info manga'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('📖 MANGA')
       .setColor(16711935)
-      .setDescription('Commande: manga')
+      .setDescription('Commande: Info manga')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'manga', inline: true }

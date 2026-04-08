@@ -1,14 +1,17 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   name: 'voicekick',
-  description: '👢 voicekick',
+  description: '👢 Kick du vocal',
+  data: new SlashCommandBuilder()
+    .setName('voicekick')
+    .setDescription('Kick du vocal'),
   
   async execute(interaction) {
     const embed = new EmbedBuilder()
       .setTitle('👢 VOICEKICK')
       .setColor(16746496)
-      .setDescription('Commande: voicekick')
+      .setDescription('Commande: Kick du vocal')
       .addFields(
         { name: 'Demandeur', value: interaction.user.tag, inline: true },
         { name: 'Commande', value: 'voicekick', inline: true }
