@@ -3,10 +3,6 @@ const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// Load configuration
-const config = require('./config');
-
-// Initialize client with intents
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -19,221 +15,105 @@ const client = new Client({
     GatewayIntentBits.GuildWebhooks,
     GatewayIntentBits.GuildEmojisAndStickers
   ],
-  partials: [
-    Partials.Message,
-    Partials.Channel,
-    Partials.Reaction,
-    Partials.GuildMember,
-    Partials.User
-  ]
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember, Partials.User]
 });
 
-// Global variables
+// Client maps
 client.commands = new Map();
 client.cooldowns = new Map();
 client.raidConfig = new Map();
-client.autoModConfig = new Map();
-client.warnings = new Map();
-client.lockedChannels = new Map();
-client.pollData = new Map();
-client.pendingVerification = new Map();
+client.shieldConfig = new Map();
+client.shieldLocked = new Map();
 
-// ========== LOAD SYSTEMS FIRST ==========
-console.log('[Bot] Loading systems...');
+// Load systems
 const systems = {};
-const systemFiles = fs.readdirSync('./systems').filter(file => file.endsWith('.js'));
-
-for (const file of systemFiles) {
+for (const file of fs.readdirSync('./systems').filter(f => f.endsWith('.js'))) {
   try {
-    const system = require(`./systems/${file}`);
-    const systemName = file.replace('.js', '');
-    systems[systemName] = system;
-    console.log(`[System] Loaded: ${systemName}`);
-  } catch (error) {
-    console.log(`[System] Error loading ${file}: ${error.message}`);
-  }
+    systems[file.replace('.js', '')] = require(`./systems/${file}`);
+  } catch (e) { console.log(`[System] Error: ${e.message}`); }
 }
-
-// Store systems in client
 client.modules = systems;
 
-// ========== LOAD COMMANDS ==========
-const commandFolders = [
-  'moderation',
-  'config',
-  'info',
-  'economy',
-  'fun',
-  'music',
-  'tickets',
-  'verification',
-  'giveaway',
-  'suggestion',
-  'utility',
-  'game',
-  'social',
-  'image',
-  'sound'
-];
-
-console.log('[Bot] Loading commands...');
-
+// Load commands (only existing folders)
+const commandFolders = ['moderation', 'utility'];
 for (const folder of commandFolders) {
-  const commandPath = path.join(__dirname, 'commands', folder);
-  if (!fs.existsSync(commandPath)) continue;
-
-  const files = fs.readdirSync(commandPath).filter(file => file.endsWith('.js'));
-
-  for (const file of files) {
+  const folderPath = `./commands/${folder}`;
+  if (!fs.existsSync(folderPath)) continue;
+  for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith('.js'))) {
     try {
-      const command = require(path.join(commandPath, file));
-      client.commands.set(command.name || command.data?.name, command);
-      console.log(`[Command] Loaded: ${file.replace('.js', '')}`);
-    } catch (error) {
-      console.log(`[Command] Error loading ${file}: ${error.message}`);
-    }
+      const cmd = require(`${folderPath}/${file}`);
+      client.commands.set(cmd.name || cmd.data?.name, cmd);
+    } catch (e) { console.log(`[Command] Error: ${file} - ${e.message}`); }
   }
 }
 
-// Add UltraShield command
+// Load shield command
 try {
-  const shieldCommand = require('./commands/shield.js');
-  client.commands.set('shield', shieldCommand);
-  console.log('[Command] Loaded: shield');
-} catch (error) {
-  console.log(`[Command] Error loading shield: ${error.message}`);
-}
+  const shield = require('./commands/shield.js');
+  client.commands.set('shield', shield);
+} catch (e) { console.log(`[Command] Error: shield - ${e.message}`); }
 
-console.log(`[Bot] Total commands loaded: ${client.commands.size}`);
-
-// ========== LOAD EVENTS ==========
-console.log('[Bot] Loading events...');
-
-const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
-
-for (const file of eventFiles) {
+// Load events
+for (const file of fs.readdirSync('./events').filter(f => f.endsWith('.js'))) {
   try {
     const event = require(`./events/${file}`);
-    const eventName = file.replace('.js', '');
-
     if (event.once) {
-      client.once(eventName, (...args) => event.execute(...args, client));
+      client.once(event.name, (...args) => event.execute(...args, client));
     } else {
-      client.on(eventName, (...args) => event.execute(...args, client));
+      client.on(event.name, (...args) => event.execute(...args, client));
     }
-    console.log(`[Event] Loaded: ${eventName}`);
-  } catch (error) {
-    console.log(`[Event] Error loading ${file}: ${error.message}`);
-  }
+  } catch (e) { console.log(`[Event] Error: ${file} - ${e.message}`); }
 }
 
-// Load shield-buttons event separately
-try {
-  const extraEvent = require('./events/shield-buttons.js');
-  client.on('interactionCreate', (...args) => extraEvent.execute(...args, client));
-  console.log('[Event] Loaded: shield-buttons');
-} catch (error) {
-  console.log(`[Event] Error loading shield-buttons: ${error.message}`);
-}
+// Init systems
+if (systems.ultraShield) systems.ultraShield(client);
+if (systems.ultraAntiRaid) systems.ultraAntiRaid(client);
+if (systems.logger) try { systems.logger(client); } catch {}
+if (systems.database) try { systems.database(client); } catch {}
 
-// ========== INITIALIZE SYSTEMS ==========
-// Initialize UltraShield
-if (systems.ultraShield) {
-  systems.ultraShield(client);
-}
+// Login
+client.login(process.env.DISCORD_TOKEN);
 
-// Initialize UltraAntiRaid
-if (systems.ultraAntiRaid) {
-  systems.ultraAntiRaid(client);
-}
-
-// Initialize AutoMod (skip - class requires 'new')
-// if (systems.autoMod) {
-//   systems.autoMod(client);
-// }
-
-// Initialize other systems
-if (systems.logger) {
-  try { systems.logger(client); } catch {}
-}
-if (systems.database) {
-  try { systems.database(client); } catch {}
-}
-
-// ========== LOGIN ==========
 client.on('ready', async () => {
-  console.log(`[Bot] Logged in as ${client.user.tag}`);
-  console.log(`[Bot] Serving ${client.guilds.cache.size} servers`);
-
-  // Register slash commands globally
+  console.log(`[Bot] Logged in as ${client.user.tag} | ${client.commands.size} commands`);
+  
+  // Register slash commands
   try {
     const { REST } = require('@discordjs/rest');
     const { Routes } = require('discord-api-types/v10');
-
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
-    const commands = [];
-    client.commands.forEach((cmd) => {
-      if (cmd.data) commands.push(cmd.data.toJSON());
-    });
-
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands }
-    );
-
-    console.log(`[Bot] Registered ${commands.length} slash commands`);
-  } catch (error) {
-    console.log(`[Bot] Error registering commands: ${error.message}`);
-  }
+    const cmds = [];
+    client.commands.forEach((cmd) => { if (cmd.data) cmds.push(cmd.data.toJSON()); });
+    await rest.put(Routes.applicationCommands(client.user.id), { body: cmds });
+    console.log(`[Bot] Registered ${cmds.length} slash commands`);
+  } catch (e) { console.log(`[Bot] Command registration error: ${e.message}`); }
 });
 
-// ========== COMMAND HANDLER ==========
+// Command handler
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const command = client.commands.get(interaction.commandName);
-  if (!command) return;
-
-  // Cooldown check
-  const key = `${interaction.user.id}-${command.name}`;
-  if (client.cooldowns.has(key)) {
-    const lastUse = client.cooldowns.get(key);
-    if (Date.now() - lastUse < (command.cooldown || 3000)) {
-      return interaction.reply({ content: '⏳ Attends un peu...', ephemeral: true });
+  if (interaction.isChatInputCommand()) {
+    const cmd = client.commands.get(interaction.commandName);
+    if (!cmd) return;
+    
+    const key = `${interaction.user.id}-${cmd.name}`;
+    if (client.cooldowns.has(key)) {
+      const last = client.cooldowns.get(key);
+      if (Date.now() - last < (cmd.cooldown || 3000)) {
+        return interaction.reply({ content: '⏳ Attends...', ephemeral: true });
+      }
     }
-  }
-  client.cooldowns.set(key, Date.now());
-
-  try {
-    await command.execute(interaction, client);
-  } catch (error) {
-    console.log(`[Command] Error: ${error.message}`);
-    if (interaction.replied) {
-      interaction.followUp({ content: '❌ Erreur executing la commande.', ephemeral: true });
-    } else {
-      interaction.reply({ content: '❌ Erreur: ' + error.message, ephemeral: true });
+    client.cooldowns.set(key, Date.now());
+    
+    try {
+      await cmd.execute(interaction, client);
+    } catch (e) {
+      console.log(`[Command] Error: ${e.message}`);
+      interaction.reply({ content: '❌ Erreur: ' + e.message, ephemeral: true }).catch(() => {});
     }
   }
 });
 
-// Handle button interactions
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton() && !interaction.isSelectMenu()) return;
+process.on('unhandledRejection', (e) => console.log('[Error]', e.message));
+process.on('uncaughtException', (e) => console.log('[Error]', e.message));
 
-  // Shield buttons are handled by the event
-});
-
-// ========== ERROR HANDLING ==========
-process.on('unhandledRejection', (error) => {
-  console.log('[Error] Unhandled rejection:', error.message);
-});
-
-process.on('uncaughtException', (error) => {
-  console.log('[Error] Uncaught exception:', error.message);
-});
-
-// ========== LOGIN ==========
-client.login(process.env.DISCORD_TOKEN);
-
-console.log('[Bot] Starting up...');
+console.log('[Bot] Starting...');
