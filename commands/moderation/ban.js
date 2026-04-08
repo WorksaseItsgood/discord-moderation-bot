@@ -2,28 +2,45 @@ const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRow
 
 module.exports = {
   name: 'ban',
-  description: '🔨 Bannit un membre définitivement',
+  description: '🔨 Bannir un membre',
   data: new SlashCommandBuilder()
     .setName('ban')
-    .setDescription('Bannit un membre définitivement'),
-  
-  async execute(interaction) {
+    .setDescription('Bannir un membre du serveur')
+    .addUserOption(opt => opt.setName('user').setDescription('Membre à bannir').setRequired(true))
+    .addStringOption(opt => opt.setName('reason').setDescription('Raison du ban').setRequired(false)),
+
+  async execute(interaction, client) {
+    const user = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'Aucune raison fournie';
+    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+
+    if (!member) {
+      return interaction.reply({ content: '❌ Membre non trouvé.', ephemeral: true });
+    }
+
+    if (!interaction.member.permissions.has('BanMembers')) {
+      return interaction.reply({ content: '❌ Vous n\'avez pas la permission de bannir.', ephemeral: true });
+    }
+
+    if (!interaction.guild.members.me.permissions.has('BanMembers')) {
+      return interaction.reply({ content: '❌ Je n\'ai pas la permission de bannir.', ephemeral: true });
+    }
+
     const embed = new EmbedBuilder()
-      .setTitle('🔨 BAN')
+      .setTitle('🔨 Confirmation - Ban')
       .setColor(16711680)
-      .setDescription('Commande: Bannit un membre définitivement')
+      .setDescription(`Voulez-vous bannir **${user.tag}** ?`)
       .addFields(
-        { name: 'Demandeur', value: interaction.user.tag, inline: true },
-        { name: 'Commande', value: 'ban', inline: true }
+        { name: 'Utilisateur', value: `${user} (${user.id})`, inline: true },
+        { name: 'Raison', value: reason, inline: true }
       )
       .setTimestamp()
-      .setFooter({ text: 'Niotic Bot' });
+      .setFooter({ text: 'Niotic - AntiRaid Bot' });
 
     const row = new ActionRowBuilder()
       .addComponents(
-        new ButtonBuilder().setCustomId('ban_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('ban_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('ban_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`ban_confirm_${user.id}`).setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`ban_cancel_${user.id}`).setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
       );
 
     await interaction.reply({ embeds: [embed], components: [row] });

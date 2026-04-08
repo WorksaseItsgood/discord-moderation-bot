@@ -2,28 +2,42 @@ const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRow
 
 module.exports = {
   name: 'warn',
-  description: '⚠️ Avertit un membre',
+  description: '⚠️ Avertir un membre',
   data: new SlashCommandBuilder()
     .setName('warn')
-    .setDescription('Avertit un membre'),
-  
-  async execute(interaction) {
+    .setDescription('Donner un avertissement à un membre')
+    .addUserOption(opt => opt.setName('user').setDescription('Membre à avertir').setRequired(true)),
+
+  async execute(interaction, client) {
+    const user = interaction.options.getUser('user');
+
+    if (!interaction.member.permissions.has('ModerateMembers')) {
+      return interaction.reply({ content: '❌ Vous n\'avez pas la permission d\'avertir.', ephemeral: true });
+    }
+
+    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+    if (!member) {
+      return interaction.reply({ content: '❌ Membre non trouvé sur ce serveur.', ephemeral: true });
+    }
+
+    if (!client.warnings) client.warnings = new Map();
+    const warns = client.warnings.get(user.id) || [];
+
     const embed = new EmbedBuilder()
-      .setTitle('⚠️ WARN')
+      .setTitle(`⚠️ Avertissement - ${user.tag}`)
       .setColor(16776960)
-      .setDescription('Commande: Avertit un membre')
+      .setDescription(`Warn de **${user.tag}**`)
       .addFields(
-        { name: 'Demandeur', value: interaction.user.tag, inline: true },
-        { name: 'Commande', value: 'warn', inline: true }
+        { name: 'Avertissements actuels', value: `${warns.length}`, inline: true }
       )
       .setTimestamp()
-      .setFooter({ text: 'Niotic Bot' });
+      .setFooter({ text: 'Niotic - AntiRaid Bot' });
 
     const row = new ActionRowBuilder()
       .addComponents(
-        new ButtonBuilder().setCustomId('warn_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('warn_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('warn_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`warn_add_${user.id}`).setLabel('⚠️ Donner warn').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`warn_list_${user.id}`).setLabel('📋 Voir warns').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`warn_cancel_${user.id}`).setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
       );
 
     await interaction.reply({ embeds: [embed], components: [row] });
