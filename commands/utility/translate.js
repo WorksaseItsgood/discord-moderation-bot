@@ -1,20 +1,28 @@
-/**
- * Translate Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('translate')
-    .setDescription('Translate text')
-    .addStringOption(option => option.setName('text').setDescription('Text to translate').setRequired(true))
-    .addStringOption(option => option.setName('language').setDescription('Target language').setRequired(true)),
+  name: 'translate',
+  description: '🌐 translate',
   
-  async execute(interaction, client) {
-    const text = interaction.options.getString('text');
-    const language = interaction.options.getString('language');
-    
-    await interaction.reply({ content: `🌐 Translated to ${language}: "${text}"` });
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setTitle('🌐 TRANSLATE')
+      .setColor(65280)
+      .setDescription('Commande: translate')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'translate', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('translate_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('translate_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('translate_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

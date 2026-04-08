@@ -1,0 +1,28 @@
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+
+module.exports = {
+  name: 'twitch',
+  description: '📺 twitch',
+  
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setTitle('📺 TWITCH')
+      .setColor(16711935)
+      .setDescription('Commande: twitch')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'twitch', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('twitch_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('twitch_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('twitch_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
+};

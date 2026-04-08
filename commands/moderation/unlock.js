@@ -1,28 +1,28 @@
-/**
- * Unlock Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('unlock')
-    .setDescription('Unlock a channel')
-    .addChannelOption(option => option.setName('channel').setDescription('Channel to unlock').setRequired(false))
-    .addStringOption(option => option.setName('reason').setDescription('Reason').setRequired(false)),
-
-  async execute(interaction, client) {
-    const channel = interaction.options.getChannel('channel') || interaction.channel;
-    const reason = interaction.options.getString('reason') || 'Unlocked by moderator';
-
+  name: 'unlock',
+  description: '🔓 unlock',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🔓 Channel Unlocked')
-      .setDescription('**Channel:** ' + channel.name)
+      .setTitle('🔓 UNLOCK')
+      .setColor(65280)
+      .setDescription('Commande: unlock')
       .addFields(
-        { name: '👮 By', value: interaction.user.tag, inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'unlock', inline: true }
       )
-      .setColor(0x00ff00);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('unlock_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('unlock_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('unlock_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

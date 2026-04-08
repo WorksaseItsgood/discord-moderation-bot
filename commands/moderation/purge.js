@@ -1,42 +1,28 @@
-/**
- * Purge - Delete messages
- */
-
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('purge')
-    .setDescription('Delete messages')
-    .addIntegerOption(option => option.setName('amount').setDescription('Number of messages').setMinValue(1).setMaxValue(100).setRequired(true))
-    .addStringOption(option => option.setName('reason').setDescription('Reason').setRequired(false)),
+  name: 'purge',
+  description: '🗑️ purge',
+  
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setTitle('🗑️ PURGE')
+      .setColor(16711680)
+      .setDescription('Commande: purge')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'purge', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-  async execute(interaction, client) {
-    const amount = interaction.options.getInteger('amount');
-    const reason = interaction.options.getString('reason') || 'Message purge';
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('purge_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('purge_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('purge_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
 
-    if (!interaction.member.permissions.has('ManageMessages')) {
-      return interaction.reply({ content: '❌ You need Manage Messages permission!', ephemeral: true });
-    }
-
-    const channel = interaction.channel;
-    const messages = await channel.messages.fetch({ limit: amount });
-
-    try {
-      await channel.bulkDelete(messages);
-
-      const embed = new EmbedBuilder()
-        .setTitle('🗑️ Messages Deleted')
-        .addFields(
-          { name: '🗑️ Deleted', value: amount + ' messages', inline: true },
-          { name: '📝 Reason', value: reason, inline: true },
-          { name: '👮 By', value: interaction.user.tag, inline: true }
-        )
-        .setColor(0x00ff00);
-
-      await interaction.reply({ embeds: [embed] });
-    } catch (e) {
-      await interaction.reply({ content: '❌ Failed: ' + e.message, ephemeral: true });
-    }
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

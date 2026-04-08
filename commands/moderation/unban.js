@@ -1,41 +1,28 @@
-/**
- * Unban Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('unban')
-    .setDescription('Unban a user')
-    .addUserOption(option => option.setName('user').setDescription('User to unban').setRequired(true))
-    .addStringOption(option => option.setName('reason').setDescription('Reason').setRequired(false)),
-
-  async execute(interaction, client) {
-    const user = interaction.options.getUser('user');
-    const reason = interaction.options.getString('reason') || 'Unban requested';
-
-    if (!interaction.member.permissions.has('BanMembers')) {
-      return interaction.reply({ content: '❌ You need Ban Members permission!', ephemeral: true });
-    }
-
-    try {
-      await interaction.guild.bans.remove(user.id);
-    } catch (e) {
-      return interaction.reply({ content: '❌ User not banned or error: ' + e.message, ephemeral: true });
-    }
-
+  name: 'unban',
+  description: '🔓 unban',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('✅ User Unbanned')
+      .setTitle('🔓 UNBAN')
+      .setColor(65280)
+      .setDescription('Commande: unban')
       .addFields(
-        { name: '👤 User', value: user.tag, inline: true },
-        { name: '📝 Reason', value: reason, inline: true },
-        { name: '👮 By', value: interaction.user.tag, inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'unban', inline: true }
       )
-      .setColor(0x00ff00);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    user.send({ content: '✅ You have been unbanned from ' + interaction.guild.name }).catch(() => {});
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('unban_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('unban_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('unban_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

@@ -1,20 +1,28 @@
-/**
- * Permissions Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('permissions')
-    .setDescription('Check your permissions'),
+  name: 'permissions',
+  description: '🔑 permissions',
   
-  async execute(interaction, client) {
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🔐 Your Permissions')
-      .setDescription('• Administrator\n• Manage Messages\n• Kick Members\n• Ban Members\n• Mute Members')
-      .setColor(0x00ff00);
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('🔑 PERMISSIONS')
+      .setColor(5793266)
+      .setDescription('Commande: permissions')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'permissions', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('permissions_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('permissions_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('permissions_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

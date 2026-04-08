@@ -1,49 +1,28 @@
-/**
- * Roleall - Add role to all members
- */
-
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('roleall')
-    .setDescription('Add a role to all members')
-    .addRoleOption(option => option.setName('role').setDescription('Role to add').setRequired(true))
-    .addStringOption(option => option.setName('filter').setDescription('Filter').addChoices(
-      { name: 'All Members', value: 'all' },
-      { name: 'Bots Only', value: 'bots' },
-      { name: 'Humans Only', value: 'humans' }
-    ).setRequired(false)),
-
-  async execute(interaction, client) {
-    const role = interaction.options.getRole('role');
-    const filter = interaction.options.getString('filter') || 'all';
-
-    if (!interaction.member.permissions.has('ManageRoles')) {
-      return interaction.reply({ content: '❌ You need Manage Roles permission!', ephemeral: true });
-    }
-
-    const members = interaction.guild.members.cache;
-    let count = 0;
-
-    for (const [id, member] of members) {
-      if (filter === 'bots' && !member.user.bot) continue;
-      if (filter === 'humans' && member.user.bot) continue;
-      try {
-        member.roles.add(role);
-        count++;
-      } catch (e) {}
-    }
-
+  name: 'roleall',
+  description: '🎭 roleall',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('✅ Role Added to All')
+      .setTitle('🎭 ROLEALL')
+      .setColor(5793266)
+      .setDescription('Commande: roleall')
       .addFields(
-        { name: '📋 Role', value: role.name, inline: true },
-        { name: '👥 Affected', value: count + ' members', inline: true },
-        { name: '🛡️ Filter', value: filter, inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'roleall', inline: true }
       )
-      .setColor(0x00ff00);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('roleall_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('roleall_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('roleall_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

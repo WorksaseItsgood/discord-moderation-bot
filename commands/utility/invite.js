@@ -1,16 +1,28 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('invite')
-    .setDescription('Get bot invite link'),
+  name: 'invite',
+  description: '📨 invite',
+  
   async execute(interaction) {
-    const embed = {
-      title: '🤖 Bot Invite',
-      description: '[Invite the bot](https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands)',
-      color: 0x5865F2,
-    };
+    const embed = new EmbedBuilder()
+      .setTitle('📨 INVITE')
+      .setColor(65280)
+      .setDescription('Commande: invite')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'invite', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
-  },
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('invite_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('invite_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('invite_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
 };

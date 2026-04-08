@@ -1,21 +1,28 @@
-/**
- * Verify Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('verify')
-    .setDescription('Verify user'),
+  name: 'verify',
+  description: '✅ verify',
   
-  async execute(interaction, client) {
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🎮 Verify')
-      .setDescription('Verify user')
-      .setColor(0x5865F2)
-      .setTimestamp();
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('✅ VERIFY')
+      .setColor(65280)
+      .setDescription('Commande: verify')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'verify', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('verify_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('verify_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('verify_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

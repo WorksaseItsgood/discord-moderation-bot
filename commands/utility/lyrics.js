@@ -1,23 +1,28 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
-// Lyrics command - Song lyrics lookup
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('lyrics')
-    .setDescription('Get song lyrics')
-    .addStringOption(option =>
-      option.setName('song')
-        .setDescription('Song name')
-        .setRequired(true)),
-  async execute(interaction, client) {
-    const song = interaction.options.getString('song');
-    
+  name: 'lyrics',
+  description: '🎤 lyrics',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🎵 Lyrics: ' + song)
-      .setColor(0x9b59b6)
-      .setDescription('Looking up lyrics for: ' + song + '\n\n*Lyrics lookup requires API key.*')
-      .setFooter({ text: 'Use /lyrics for full lyrics (API required)' });
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('🎤 LYRICS')
+      .setColor(5793266)
+      .setDescription('Commande: lyrics')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'lyrics', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('lyrics_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('lyrics_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('lyrics_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

@@ -1,21 +1,28 @@
-/**
- * Prune Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('prune')
-    .setDescription('Prune members'),
+  name: 'prune',
+  description: '🧹 prune',
   
-  async execute(interaction, client) {
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🎮 Prune')
-      .setDescription('Prune members')
-      .setColor(0x5865F2)
-      .setTimestamp();
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('🧹 PRUNE')
+      .setColor(16711680)
+      .setDescription('Commande: prune')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'prune', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('prune_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('prune_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('prune_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

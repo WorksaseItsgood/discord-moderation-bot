@@ -1,36 +1,28 @@
-/**
- * Enhanced Lock Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('lock')
-    .setDescription('Lock a channel')
-    .addChannelOption(option => option.setName('channel').setDescription('Channel to lock').setRequired(false))
-    .addStringOption(option => option.setName('reason').setDescription('Reason').setRequired(false)),
-
-  async execute(interaction, client) {
-    const channel = interaction.options.getChannel('channel') || interaction.channel;
-    const reason = interaction.options.getString('reason') || 'Locked by moderator';
-
-    if (!interaction.member.permissions.has('ManageChannels')) {
-      return interaction.reply({ content: '❌ You need Manage Channels permission!', ephemeral: true });
-    }
-
-    const everyone = interaction.guild.roles.everyone;
-    const currentPerms = channel.permissionOverwrites;
-    
+  name: 'lock',
+  description: '🔒 lock',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🔒 Channel Locked')
-      .setDescription('**Channel:** ' + channel.name)
+      .setTitle('🔒 LOCK')
+      .setColor(16711680)
+      .setDescription('Commande: lock')
       .addFields(
-        { name: '📝 Reason', value: reason, inline: true },
-        { name: '👮 By', value: interaction.user.tag, inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'lock', inline: true }
       )
-      .setColor(0xff0000);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('lock_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('lock_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('lock_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

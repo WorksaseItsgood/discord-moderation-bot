@@ -1,18 +1,28 @@
-/**
- * QR Code Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('qrcode')
-    .setDescription('Generate a QR code')
-    .addStringOption(option => option.setName('text').setDescription('Text or URL').setRequired(true)),
+  name: 'qrcode',
+  description: '📱 qrcode',
   
-  async execute(interaction, client) {
-    const text = interaction.options.getString('text');
-    
-    await interaction.reply({ content: `📱 QR Code generated for: ${text}` });
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setTitle('📱 QRCODE')
+      .setColor(5793266)
+      .setDescription('Commande: qrcode')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'qrcode', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('qrcode_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('qrcode_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('qrcode_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

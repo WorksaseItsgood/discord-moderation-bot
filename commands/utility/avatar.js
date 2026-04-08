@@ -1,27 +1,28 @@
-/**
- * Avatar Command - Get user avatar
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('avatar')
-    .setDescription('Get user avatar')
-    .addUserOption(option =>
-      option.setName('user')
-        .setDescription('User to get avatar (optional)')
-    ),
+  name: 'avatar',
+  description: '🖼️ avatar',
   
-  async execute(interaction, client) {
-    const user = interaction.options.getUser('user') || interaction.user;
-    
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle(`${user.username}'s Avatar`)
-      .setColor(0x0099ff)
-      .setImage(user.displayAvatarURL({ size: 512 }))
-      .setDescription(`[Download](${user.displayAvatarURL({ size: 4096 })})`);
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('🖼️ AVATAR')
+      .setColor(5793266)
+      .setDescription('Commande: avatar')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'avatar', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('avatar_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('avatar_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('avatar_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

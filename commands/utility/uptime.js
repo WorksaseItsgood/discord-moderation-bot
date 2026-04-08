@@ -1,29 +1,28 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('uptime')
-    .setDescription('Get bot uptime'),
+  name: 'uptime',
+  description: '⏱️ uptime',
+  
   async execute(interaction) {
-    const client = interaction.client;
-    const uptime = client.uptime;
-    
-    if (!uptime) {
-      return interaction.reply({ content: 'Bot is restarting...', ephemeral: true });
-    }
-    
-    const seconds = Math.floor(uptime / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    const embed = {
-      title: '⏱️ Bot Uptime',
-      description: `**${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s**`,
-      color: 0x5865F2,
-      timestamp: new Date().toISOString(),
-    };
+    const embed = new EmbedBuilder()
+      .setTitle('⏱️ UPTIME')
+      .setColor(65280)
+      .setDescription('Commande: uptime')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'uptime', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
-  },
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('uptime_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('uptime_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('uptime_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
 };

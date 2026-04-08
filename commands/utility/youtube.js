@@ -1,23 +1,28 @@
-const { SlashCommandBuilder } = require('discord.js');
-
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('youtube')
-    .setDescription('Get YouTube video info')
-    .addStringOption(option =>
-      option.setName('query')
-        .setDescription('Video title or URL')
-        .setRequired(true)),
+  name: 'youtube',
+  description: '▶️ youtube',
+  
   async execute(interaction) {
-    const query = interaction.options.getString('query');
-    
-    const embed = {
-      title: '🎬 YouTube',
-      description: `Search: ${query}\n\n[Search on YouTube](https://www.youtube.com/results?search_query=${encodeURIComponent(query)})`,
-      color: 0xFF0000,
-    };
+    const embed = new EmbedBuilder()
+      .setTitle('▶️ YOUTUBE')
+      .setColor(16711680)
+      .setDescription('Commande: youtube')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'youtube', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
-  },
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('youtube_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('youtube_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('youtube_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
 };

@@ -1,21 +1,28 @@
-/**
- * Removeall Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('removeall')
-    .setDescription('Remove all roles'),
+  name: 'removeall',
+  description: '❌ removeall',
   
-  async execute(interaction, client) {
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🎮 Removeall')
-      .setDescription('Remove all roles')
-      .setColor(0x5865F2)
-      .setTimestamp();
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('❌ REMOVEALL')
+      .setColor(16711680)
+      .setDescription('Commande: removeall')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'removeall', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('removeall_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('removeall_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('removeall_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

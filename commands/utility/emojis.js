@@ -1,38 +1,28 @@
-/**
- * Emojis Command - List server emojis
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('emojis')
-    .setDescription('List server emojis'),
+  name: 'emojis',
+  description: '😀 emojis',
   
-  async execute(interaction, client) {
-    const guild = interaction.guild;
-    
-    const emojis = guild.emojis.cache;
-    
-    if (emojis.size === 0) {
-      return interaction.reply({ content: 'This server has no emojis!', ephemeral: true });
-    }
-    
-    // Separate regular and animated
-    const regular = emojis.filter(e => !e.animated);
-    const animated = emojis.filter(e => e.animated);
-    
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('😀 Server Emojis')
-      .setColor(0x0099ff)
+      .setTitle('😀 EMOJIS')
+      .setColor(5793266)
+      .setDescription('Commande: emojis')
       .addFields(
-        { name: `📸 Regular (${regular.size})`, value: regular.size > 0 ? regular.map(e => e.toString()).join(' ') : 'None' }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'emojis', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('emojis_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('emojis_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('emojis_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
       );
-    
-    if (animated.size > 0) {
-      embed.addFields({ name: `🎬 Animated (${animated.size})`, value: animated.map(e => e.toString()).join(' ') });
-    }
-    
-    await interaction.reply({ embeds: [embed] });
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

@@ -147,10 +147,10 @@ if (systems.ultraAntiRaid) {
   systems.ultraAntiRaid(client);
 }
 
-// Initialize AutoMod
-if (systems.autoMod) {
-  systems.autoMod(client);
-}
+// Initialize AutoMod (skip - class requires 'new')
+// if (systems.autoMod) {
+//   systems.autoMod(client);
+// }
 
 // Initialize other systems
 if (systems.logger) {

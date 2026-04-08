@@ -1,23 +1,28 @@
-/**
- * Weather Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('weather')
-    .setDescription('Get weather info')
-    .addStringOption(option => option.setName('city').setDescription('City name').setRequired(true)),
+  name: 'weather',
+  description: '🌤️ weather',
   
-  async execute(interaction, client) {
-    const city = interaction.options.getString('city');
-    
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle(`🌤️ Weather in ${city}`)
-      .setDescription('Currently: 72°F (22°C)\nCondition: Partly Cloudy\nHumidity: 45%\nWind: 10 mph')
-      .setColor(0x00ccff);
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('🌤️ WEATHER')
+      .setColor(5793266)
+      .setDescription('Commande: weather')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'weather', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('weather_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('weather_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('weather_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

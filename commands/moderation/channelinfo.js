@@ -1,21 +1,28 @@
-/**
- * Channelinfo Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('channelinfo')
-    .setDescription('Channel info'),
+  name: 'channelinfo',
+  description: '📁 channelinfo',
   
-  async execute(interaction, client) {
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🎮 Channelinfo')
-      .setDescription('Channel info')
-      .setColor(0x5865F2)
-      .setTimestamp();
-    
-    await interaction.reply({ embeds: [embed] });
+      .setTitle('📁 CHANNELINFO')
+      .setColor(5793266)
+      .setDescription('Commande: channelinfo')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'channelinfo', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('channelinfo_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('channelinfo_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('channelinfo_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

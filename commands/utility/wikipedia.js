@@ -1,41 +1,28 @@
-/**
- * Wikipedia Command - Search Wikipedia
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('wikipedia')
-    .setDescription('Search Wikipedia')
-    .addStringOption(option =>
-      option.setName('query')
-        .setDescription('Search query')
-        .setRequired(true)
-    ),
+  name: 'wikipedia',
+  description: '📚 wikipedia',
   
-  async execute(interaction, client) {
-    const query = interaction.options.getString('query');
-    
-    try {
-      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
-      const data = await res.json();
-      
-      if (data.type === 'no-match' || data.title === 'Not found.') {
-        return interaction.reply({ content: 'No results found!', ephemeral: true });
-      }
-      
-      const embed = new EmbedBuilder()
-        .setTitle(`📚 ${data.title}`)
-        .setDescription(data.extract || 'No description available')
-        .addFields(
-          { name: '🔗 Read more', value: data.content_urls?.desktop?.page || 'N/A' }
-        )
-        .setColor(0x0099ff);
-      
-      await interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      await interaction.reply({ content: 'Failed to search Wikipedia!', ephemeral: true });
-    }
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setTitle('📚 WIKIPEDIA')
+      .setColor(5793266)
+      .setDescription('Commande: wikipedia')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'wikipedia', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('wikipedia_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('wikipedia_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('wikipedia_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

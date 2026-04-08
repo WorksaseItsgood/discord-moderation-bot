@@ -1,31 +1,28 @@
-/**
- * Raidmode Control
- */
-
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('raidmode')
-    .setDescription('Toggle raid mode')
-    .addStringOption(option => option.setName('action').setDescription('Action').addChoices(
-      { name: 'Enable', value: 'on' },
-      { name: 'Disable', value: 'off' },
-      { name: 'Status', value: 'status' }
-    ).setRequired(false)),
-
-  async execute(interaction, client) {
-    const action = interaction.options.getString('action') || 'status';
-
+  name: 'raidmode',
+  description: '🛡️ raidmode',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('🛡️ Raid Mode')
-      .setDescription('**Status:** ' + (action === 'on' ? '🟢 ENABLED' : '🔴 Disabled'))
+      .setTitle('🛡️ RAIDMODE')
+      .setColor(16711680)
+      .setDescription('Commande: raidmode')
       .addFields(
-        { name: '👮 Enabled by', value: interaction.user.tag, inline: true },
-        { name: '📅 Date', value: new Date().toLocaleString(), inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'raidmode', inline: true }
       )
-      .setColor(action === 'on' ? 0xff0000 : 0x00ff00);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('raidmode_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('raidmode_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('raidmode_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

@@ -1,17 +1,28 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('logs')
-    .setDescription('Show current log settings'),
+  name: 'logs',
+  description: '📜 logs',
+  
   async execute(interaction) {
-    const embed = {
-      title: '📝 Log Settings',
-      description: '**Channel:** #log-channel\n**Enabled:** ✅\n\nLog types:\n• Moderation: ✅\n• Messages: ✅\n• Voice: ✅\n• Members: ✅',
-      color: 0x5865F2,
-      timestamp: new Date().toISOString(),
-    };
+    const embed = new EmbedBuilder()
+      .setTitle('📜 LOGS')
+      .setColor(5793266)
+      .setDescription('Commande: logs')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'logs', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
-  },
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('logs_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('logs_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('logs_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
 };

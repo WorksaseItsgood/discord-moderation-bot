@@ -1,45 +1,28 @@
-/**
- * Role - Add/remove role from user
- */
-
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('role')
-    .setDescription('Add or remove a role from a user')
-    .addUserOption(option => option.setName('user').setDescription('User').setRequired(true))
-    .addRoleOption(option => option.setName('role').setDescription('Role').setRequired(true))
-    .addStringOption(option => option.setName('action').setDescription('Action').addChoices(
-      { name: 'Add', value: 'add' },
-      { name: 'Remove', value: 'remove' }
-    ).setRequired(false)),
-
-  async execute(interaction, client) {
-    const user = interaction.options.getUser('user');
-    const role = interaction.options.getRole('role');
-    const action = interaction.options.getString('action') || 'add';
-
-    const member = interaction.guild.members.cache.get(user.id);
-    if (!member) {
-      return interaction.reply({ content: '❌ User not found!', ephemeral: true });
-    }
-
-    if (action === 'add') {
-      member.roles.add(role).catch(() => {});
-    } else {
-      member.roles.remove(role).catch(() => {});
-    }
-
+  name: 'role',
+  description: '🎭 role',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle(action === 'add' ? '✅ Role Added' : '❌ Role Removed')
+      .setTitle('🎭 ROLE')
+      .setColor(5793266)
+      .setDescription('Commande: role')
       .addFields(
-        { name: '👤 User', value: user.tag, inline: true },
-        { name: '📋 Role', value: role.name, inline: true },
-        { name: '👮 By', value: interaction.user.tag, inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'role', inline: true }
       )
-      .setColor(action === 'add' ? 0x00ff00 : 0xff0000);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('role_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('role_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('role_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

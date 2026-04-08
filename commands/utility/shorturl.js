@@ -1,18 +1,28 @@
-/**
- * Short URL Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('shorturl')
-    .setDescription('Shorten a URL')
-    .addStringOption(option => option.setName('url').setDescription('URL to shorten').setRequired(true)),
+  name: 'shorturl',
+  description: '🔗 shorturl',
   
-  async execute(interaction, client) {
-    const url = interaction.options.getString('url');
-    
-    await interaction.reply({ content: `🔗 Shortened URL: https://short.url/abc123` });
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setTitle('🔗 SHORTURL')
+      .setColor(5793266)
+      .setDescription('Commande: shorturl')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'shorturl', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('shorturl_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('shorturl_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('shorturl_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

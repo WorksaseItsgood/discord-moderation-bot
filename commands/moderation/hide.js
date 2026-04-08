@@ -1,28 +1,28 @@
-/**
- * Hide Channel Command
- */
-
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('hide')
-    .setDescription('Hide a channel from everyone')
-    .addChannelOption(option => option.setName('channel').setDescription('Channel').setRequired(false))
-    .addStringOption(option => option.setName('reason').setDescription('Reason').setRequired(false)),
-
-  async execute(interaction, client) {
-    const channel = interaction.options.getChannel('channel') || interaction.channel;
-    const reason = interaction.options.getString('reason') || 'Channel hidden';
-
+  name: 'hide',
+  description: '🙈 hide',
+  
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('👀 Channel Hidden')
-      .setDescription('**Channel:** ' + channel.name)
+      .setTitle('🙈 HIDE')
+      .setColor(5793266)
+      .setDescription('Commande: hide')
       .addFields(
-        { name: '👮 By', value: interaction.user.tag, inline: true }
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'hide', inline: true }
       )
-      .setColor(0x00ff00);
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    await interaction.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('hide_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('hide_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('hide_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

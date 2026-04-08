@@ -1,20 +1,28 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('antispam')
-    .setDescription('Toggle anti-spam filter'),
+  name: 'antispam',
+  description: '🛡️ antispam',
+  
   async execute(interaction) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return interaction.reply({ content: '❌ You need Manage Messages permission!', ephemeral: true });
-    }
+    const embed = new EmbedBuilder()
+      .setTitle('🛡️ ANTISPAM')
+      .setColor(16711680)
+      .setDescription('Commande: antispam')
+      .addFields(
+        { name: 'Demandeur', value: interaction.user.tag, inline: true },
+        { name: 'Commande', value: 'antispam', inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Niotic Bot' });
 
-    const embed = {
-      title: '🔒 Anti-Spam',
-      description: '**Status:** ✅ Enabled\n\nSpam will be automatically detected and deleted!',
-      color: 0x00FF00,
-    };
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder().setCustomId('antispam_run').setLabel('▶️ Exécuter').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('antispam_info').setLabel('ℹ️ Info').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('antispam_help').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
+      );
 
-    await interaction.reply({ embeds: [embed] });
-  },
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
 };
