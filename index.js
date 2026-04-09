@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials, Collection } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, Collection, REST, Routes } from 'discord.js';
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -68,6 +68,23 @@ async function loadCommands() {
   return count;
 }
 
+// Register slash commands with Discord
+async function registerCommands() {
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  const commands = client.commands.map(cmd => cmd.data?.toJSON ? cmd.data.toJSON() : cmd.data).filter(Boolean);
+
+  try {
+    console.log(`[Deploy] Registering ${commands.length} slash commands...`);
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    console.log(`[Deploy] ✅ ${commands.length} commands deployed to Discord!`);
+  } catch (err) {
+    console.error('[Deploy] ❌ Failed to deploy commands:', err.message);
+  }
+}
+
 // Load events
 async function loadEvents() {
   const files = readdirSync(join(__dirname, 'src', 'events')).filter(f => f.endsWith('.js'));
@@ -93,6 +110,9 @@ client.once('ready', async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
   console.log(`📊 Serving ${c.guilds.cache.size} servers`);
   c.user.setActivity('/help | Niotic Moderation', { type: 3 });
+
+  // Deploy slash commands to Discord
+  await registerCommands();
 
   // Pre-load guild configs
   for (const guild of c.guilds.cache.values()) {
