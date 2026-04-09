@@ -60,99 +60,101 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`unmute_confirm_${target.id}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-
-        try {
-          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-          if (!member) {
-            return btnInteraction.update({
-              embeds: [new EmbedBuilder()
-                .setColor(0xff4757)
-                .setDescription('❌ Membre introuvable.')
-                .setFooter({ text: 'Niotic Moderation' })
-                .setTimestamp()],
-              components: [],
-            });
-          }
-
-          if (!member.isCommunicationDisabled()) {
-            return btnInteraction.update({
-              embeds: [new EmbedBuilder()
-                .setColor(0xff4757)
-                .setDescription('❌ Cet utilisateur n\'est pas muté.')
-                .setFooter({ text: 'Niotic Moderation' })
-                .setTimestamp()],
-              components: [],
-            });
-          }
-
-          await member.timeout(null, `Unmuté par ${interaction.user.tag}`);
-
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0x00ff99)
-              .setTitle('🔊 Utilisateur démuté')
-              .setThumbnail(target.displayAvatarURL())
-              .setDescription(`Le mute de **${target.tag}** a été retiré.`)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, {
-              action: 'unmute',
-              userId: target.id,
-              moderatorId: interaction.user.id,
-            });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'unmute', {
-              target: target,
-              moderator: interaction.user,
-              reason: 'Mute removed',
-            });
-          } catch (e) {
-            client.logger.error('[Unmute] Log error:', e);
-          }
-
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec du unmute')
-              .setDescription(err.message)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-        }
-
-        client.buttonHandlers.delete(`unmute_confirm_${target.id}`);
-        client.buttonHandlers.delete('unmute_cancel');
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
       });
 
-      client.buttonHandlers.set('unmute_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Unmute annulé.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`unmute_confirm_${target.id}`);
-        client.buttonHandlers.delete('unmute_cancel');
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `unmute_confirm_${target.id}`) {
+          try {
+            const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+            if (!member) {
+              return btn.editReply({
+                embeds: [new EmbedBuilder()
+                  .setColor(0xff4757)
+                  .setDescription('❌ Membre introuvable.')
+                  .setFooter({ text: 'Niotic Moderation' })
+                  .setTimestamp()],
+                components: [],
+              });
+            }
+
+            if (!member.isCommunicationDisabled()) {
+              return btn.editReply({
+                embeds: [new EmbedBuilder()
+                  .setColor(0xff4757)
+                  .setDescription('❌ Cet utilisateur n\'est pas muté.')
+                  .setFooter({ text: 'Niotic Moderation' })
+                  .setTimestamp()],
+                components: [],
+              });
+            }
+
+            await member.timeout(null, `Unmuté par ${interaction.user.tag}`);
+
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0x00ff99)
+                .setTitle('🔊 Utilisateur démuté')
+                .setThumbnail(target.displayAvatarURL())
+                .setDescription(`Le mute de **${target.tag}** a été retiré.`)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, {
+                action: 'unmute',
+                userId: target.id,
+                moderatorId: interaction.user.id,
+              });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'unmute', {
+                target: target,
+                moderator: interaction.user,
+                reason: 'Mute removed',
+              });
+            } catch (e) {
+              client.logger.error('[Unmute] Log error:', e);
+            }
+
+          } catch (err) {
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0xff4757)
+                .setTitle('❌ Échec du unmute')
+                .setDescription(err.message)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+          }
+        } else if (btn.customId === 'unmute_cancel') {
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x808080)
+              .setDescription('❌ Unmute annulé.')
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp()],
+            components: [],
+          });
+        }
+      });
+
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Unmute] Error:', error);

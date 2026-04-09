@@ -63,70 +63,72 @@ export default {
       .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+    const userId = interaction.user.id;
 
-    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-    client.buttonHandlers.set(`giverole_confirm_${target.id}_${role.id}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
-
-      try {
-        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-        if (!member) {
-          return btnInteraction.update({
-            embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Membre introuvable.')],
-            components: [],
-          });
-        }
-
-        if (member.roles.cache.has(role.id)) {
-          return btnInteraction.update({
-            embeds: [new EmbedBuilder().setColor(0xff0000).setDescription(`❌ **${target.tag}** a déjà le rôle ${role.name}.`)],
-            components: [],
-          });
-        }
-
-        await member.roles.add(role, `Rôle donné par ${interaction.user.tag}`);
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('🎭 Rôle attribué')
-            .setDescription(`Le rôle ${role.name} a été donné à **${target.tag}**.`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'giverole',
-          userId: target.id,
-          moderatorId: interaction.user.id,
-          roleId: role.id,
-          roleName: role.name,
-          timestamp: Date.now(),
-        });
-
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`giverole_confirm_${target.id}_${role.id}`);
-      client.buttonHandlers.delete('giverole_cancel');
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
     });
 
-    client.buttonHandlers.set('giverole_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) return;
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Opération annulée.')],
-        components: [],
-      });
-      client.buttonHandlers.delete(`giverole_confirm_${target.id}_${role.id}`);
-      client.buttonHandlers.delete('giverole_cancel');
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `giverole_confirm_${target.id}_${role.id}`) {
+        try {
+          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+          if (!member) {
+            return btn.editReply({
+              embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Membre introuvable.')],
+              components: [],
+            });
+          }
+
+          if (member.roles.cache.has(role.id)) {
+            return btn.editReply({
+              embeds: [new EmbedBuilder().setColor(0xff0000).setDescription(`❌ **${target.tag}** a déjà le rôle ${role.name}.`)],
+              components: [],
+            });
+          }
+
+          await member.roles.add(role, `Rôle donné par ${interaction.user.tag}`);
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('🎭 Rôle attribué')
+              .setDescription(`Le rôle ${role.name} a été donné à **${target.tag}**.`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'giverole',
+            userId: target.id,
+            moderatorId: interaction.user.id,
+            roleId: role.id,
+            roleName: role.name,
+            timestamp: Date.now(),
+          });
+
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
+            components: [],
+          });
+        }
+      } else if (btn.customId === 'giverole_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Opération annulée.')],
+          components: [],
+        });
+      }
+    });
+
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

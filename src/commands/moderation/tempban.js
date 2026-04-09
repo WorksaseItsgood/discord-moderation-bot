@@ -103,115 +103,117 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`tempban_confirm_${target.id}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
+      });
 
-        try {
-          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-          if (!member) {
-            return btnInteraction.update({
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `tempban_confirm_${target.id}`) {
+          try {
+            const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+            if (!member) {
+              return btn.editReply({
+                embeds: [new EmbedBuilder()
+                  .setColor(0xff4757)
+                  .setDescription('❌ Membre introuvable.')
+                  .setFooter({ text: 'Niotic Moderation' })
+                  .setTimestamp()],
+                components: [],
+              });
+            }
+
+            const banUntil = Date.now() + duration;
+            await member.ban({ reason: `${reason} | Banni par ${interaction.user.tag}`, deleteMessageDays: 1 });
+
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0x00ff99)
+                .setTitle('⏱️ Utilisateur banni')
+                .setThumbnail(target.displayAvatarURL())
+                .setDescription(`**${target.tag}** a été banni pour ${durationStr}.\nRaison: ${reason}\nFin du ban: <t:${Math.floor(banUntil / 1000)}:R>`)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, {
+                action: 'tempban',
+                userId: target.id,
+                moderatorId: interaction.user.id,
+                reason,
+                duration: durationStr,
+                banUntil,
+              });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'tempban', {
+                target: target,
+                moderator: interaction.user,
+                reason: reason,
+                duration: durationStr,
+              });
+            } catch (e) {
+              client.logger.error('[Tempban] Log error:', e);
+            }
+
+            // Auto unban after duration
+            setTimeout(async () => {
+              try {
+                const bannedUsers = await interaction.guild.bans.fetch();
+                const bannedUser = bannedUsers.find(u => u.user.id === target.id);
+                if (bannedUser) {
+                  await interaction.guild.members.unban(target.id, `Tempban expiré - unbanni par le système`);
+
+                  try {
+                    await addLog(interaction.guild.id, {
+                      action: 'tempban_unban',
+                      userId: target.id,
+                      moderatorId: client.user.id,
+                      reason: 'Ban temporaire expiré',
+                    });
+                  } catch {}
+                }
+              } catch (err) {
+                client.logger.error(`[Tempban] Auto-unban error: ${err.message}`);
+              }
+            }, duration);
+
+          } catch (err) {
+            await btn.editReply({
               embeds: [new EmbedBuilder()
                 .setColor(0xff4757)
-                .setDescription('❌ Membre introuvable.')
+                .setTitle('❌ Échec du ban')
+                .setDescription(err.message)
                 .setFooter({ text: 'Niotic Moderation' })
                 .setTimestamp()],
               components: [],
             });
           }
-
-          const banUntil = Date.now() + duration;
-          await member.ban({ reason: `${reason} | Banni par ${interaction.user.tag}`, deleteMessageDays: 1 });
-
-          await btnInteraction.update({
+        } else if (btn.customId === 'tempban_cancel') {
+          await btn.editReply({
             embeds: [new EmbedBuilder()
-              .setColor(0x00ff99)
-              .setTitle('⏱️ Utilisateur banni')
-              .setThumbnail(target.displayAvatarURL())
-              .setDescription(`**${target.tag}** a été banni pour ${durationStr}.\nRaison: ${reason}\nFin du ban: <t:${Math.floor(banUntil / 1000)}:R>`)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, {
-              action: 'tempban',
-              userId: target.id,
-              moderatorId: interaction.user.id,
-              reason,
-              duration: durationStr,
-              banUntil,
-            });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'tempban', {
-              target: target,
-              moderator: interaction.user,
-              reason: reason,
-              duration: durationStr,
-            });
-          } catch (e) {
-            client.logger.error('[Tempban] Log error:', e);
-          }
-
-          // Auto unban after duration
-          setTimeout(async () => {
-            try {
-              const bannedUsers = await interaction.guild.bans.fetch();
-              const bannedUser = bannedUsers.find(u => u.user.id === target.id);
-              if (bannedUser) {
-                await interaction.guild.members.unban(target.id, `Tempban expiré - unbanni par le système`);
-                
-                try {
-                  await addLog(interaction.guild.id, {
-                    action: 'tempban_unban',
-                    userId: target.id,
-                    moderatorId: client.user.id,
-                    reason: 'Ban temporaire expiré',
-                  });
-                } catch {}
-              }
-            } catch (err) {
-              client.logger.error(`[Tempban] Auto-unban error: ${err.message}`);
-            }
-          }, duration);
-
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec du ban')
-              .setDescription(err.message)
+              .setColor(0x808080)
+              .setDescription('❌ Ban annulé.')
               .setFooter({ text: 'Niotic Moderation' })
               .setTimestamp()],
             components: [],
           });
         }
-
-        client.buttonHandlers.delete(`tempban_confirm_${target.id}`);
-        client.buttonHandlers.delete('tempban_cancel');
       });
 
-      client.buttonHandlers.set('tempban_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Ban annulé.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`tempban_confirm_${target.id}`);
-        client.buttonHandlers.delete('tempban_cancel');
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Tempban] Error:', error);

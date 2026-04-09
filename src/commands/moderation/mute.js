@@ -99,105 +99,107 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`mute_confirm_${target.id}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
+      });
 
-        try {
-          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-          if (!member) {
-            return btnInteraction.update({
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `mute_confirm_${target.id}`) {
+          try {
+            const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+            if (!member) {
+              return btn.editReply({
+                embeds: [new EmbedBuilder()
+                  .setColor(0xff4757)
+                  .setDescription('❌ Membre introuvable.')
+                  .setFooter({ text: 'Niotic Moderation' })
+                  .setTimestamp()],
+                components: [],
+              });
+            }
+
+            const muteUntil = Date.now() + duration;
+            await member.timeout(duration, `${reason} | Muté par ${interaction.user.tag}`);
+
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0x00ff99)
+                .setTitle('🔇 Utilisateur muté')
+                .setThumbnail(target.displayAvatarURL())
+                .setDescription(`**${target.tag}** a été muté pour ${durationStr}.\nRaison: ${reason}\nFin du mute: <t:${Math.floor(muteUntil / 1000)}:R>`)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, {
+                action: 'mute',
+                userId: target.id,
+                moderatorId: interaction.user.id,
+                reason,
+                duration: durationStr,
+                muteUntil,
+              });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'mute', {
+                target: target,
+                moderator: interaction.user,
+                reason: reason,
+                duration: durationStr,
+              });
+            } catch (e) {
+              client.logger.error('[Mute] Log error:', e);
+            }
+
+            // Auto-unmute after duration
+            setTimeout(async () => {
+              try {
+                const currentMember = await interaction.guild.members.fetch(target.id).catch(() => null);
+                if (currentMember && currentMember.isCommunicationDisabled()) {
+                  await currentMember.timeout(null);
+                }
+              } catch (err) {
+                client.logger.error(`[Mute] Auto-unmute error: ${err.message}`);
+              }
+            }, duration);
+
+          } catch (err) {
+            await btn.editReply({
               embeds: [new EmbedBuilder()
                 .setColor(0xff4757)
-                .setDescription('❌ Membre introuvable.')
+                .setTitle('❌ Échec du mute')
+                .setDescription(err.message)
                 .setFooter({ text: 'Niotic Moderation' })
                 .setTimestamp()],
               components: [],
             });
           }
-
-          const muteUntil = Date.now() + duration;
-          await member.timeout(duration, `${reason} | Muté par ${interaction.user.tag}`);
-
-          await btnInteraction.update({
+        } else if (btn.customId === 'mute_cancel') {
+          await btn.editReply({
             embeds: [new EmbedBuilder()
-              .setColor(0x00ff99)
-              .setTitle('🔇 Utilisateur muté')
-              .setThumbnail(target.displayAvatarURL())
-              .setDescription(`**${target.tag}** a été muté pour ${durationStr}.\nRaison: ${reason}\nFin du mute: <t:${Math.floor(muteUntil / 1000)}:R>`)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, {
-              action: 'mute',
-              userId: target.id,
-              moderatorId: interaction.user.id,
-              reason,
-              duration: durationStr,
-              muteUntil,
-            });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'mute', {
-              target: target,
-              moderator: interaction.user,
-              reason: reason,
-              duration: durationStr,
-            });
-          } catch (e) {
-            client.logger.error('[Mute] Log error:', e);
-          }
-
-          // Auto-unmute after duration
-          setTimeout(async () => {
-            try {
-              const currentMember = await interaction.guild.members.fetch(target.id).catch(() => null);
-              if (currentMember && currentMember.isCommunicationDisabled()) {
-                await currentMember.timeout(null);
-              }
-            } catch (err) {
-              client.logger.error(`[Mute] Auto-unmute error: ${err.message}`);
-            }
-          }, duration);
-
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec du mute')
-              .setDescription(err.message)
+              .setColor(0x808080)
+              .setDescription('❌ Mute annulé.')
               .setFooter({ text: 'Niotic Moderation' })
               .setTimestamp()],
             components: [],
           });
         }
-
-        client.buttonHandlers.delete(`mute_confirm_${target.id}`);
-        client.buttonHandlers.delete('mute_cancel');
       });
 
-      client.buttonHandlers.set('mute_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Mute annulé.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`mute_confirm_${target.id}`);
-        client.buttonHandlers.delete('mute_cancel');
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Mute] Error:', error);

@@ -7,21 +7,33 @@ export default {
     const action = interaction.options.getString('action') || 'status';
     const guildId = interaction.guild.id;
     const status = getRaidStatus(guildId, client);
+    const userId = interaction.user.id;
     if (action === 'status') {
       const embed = new EmbedBuilder().setTitle('🛡️ Raid Mode').setColor(status.active ? 0xff0000 : 0x00ff00).addFields({ name: 'Statut', value: status.active ? '🔒 ACTIF' : '🟢 Inactif', inline: true }, { name: 'Type', value: status.type || '-', inline: true }, { name: 'Déclenché par', value: status.triggeredBy || '-', inline: true }).setTimestamp();
       const enableBtn = new ButtonBuilder().setCustomId('raidmode_enable').setLabel('🔒 Activer').setStyle(ButtonStyle.Danger);
       const disableBtn = new ButtonBuilder().setCustomId('raidmode_disable').setLabel('🟢 Désactiver').setStyle(ButtonStyle.Success);
       const row = new ActionRowBuilder().addComponents(enableBtn, disableBtn);
-      await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-      client.buttonHandlers.set('raidmode_enable', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        const count = await enableRaidMode(interaction.guild, interaction.user.tag, client);
-        await btn.update({ content: `🔒 Raid Mode activé! ${count} salons verrouillés.`, embeds: [], components: [] });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [embed], components: [row] });
+
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
       });
-      client.buttonHandlers.set('raidmode_disable', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await disableRaidMode(interaction.guild, client);
-        await btn.update({ content: '🟢 Raid Mode désactivé!', embeds: [], components: [] });
+
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === 'raidmode_enable') {
+          const count = await enableRaidMode(interaction.guild, interaction.user.tag, client);
+          await btn.editReply({ content: `🔒 Raid Mode activé! ${count} salons verrouillés.`, embeds: [], components: [] });
+        } else if (btn.customId === 'raidmode_disable') {
+          await disableRaidMode(interaction.guild, client);
+          await btn.editReply({ content: '🟢 Raid Mode désactivé!', embeds: [], components: [] });
+        }
+      });
+
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } else if (action === 'enable') {
       const count = await enableRaidMode(interaction.guild, interaction.user.tag, client);

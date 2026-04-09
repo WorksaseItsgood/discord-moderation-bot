@@ -6,6 +6,7 @@ export default {
     const guildId = interaction.guild.id;
     const config = client.guildConfigs.get(guildId) || {};
     const raidState = client.raidMode?.get(guildId);
+    const userId = interaction.user.id;
     const embed = new EmbedBuilder()
       .setTitle('🛡️ Shield Status')
       .setColor(0x5865F2)
@@ -18,14 +19,25 @@ export default {
       .setTimestamp();
     const toggleBtn = new ButtonBuilder().setCustomId('shield_toggle').setLabel(config.shieldEnabled !== false ? '🔴 Désactiver' : '🟢 Activer').setStyle(config.shieldEnabled !== false ? ButtonStyle.Danger : ButtonStyle.Success);
     const row = new ActionRowBuilder().addComponents(toggleBtn);
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-    client.buttonHandlers.set('shield_toggle', async (btn) => {
-      if (btn.user.id !== interaction.user.id) return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({ embeds: [embed], components: [row] });
+
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
+    });
+
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
       const newState = !(config.shieldEnabled !== false);
       client.guildConfigs.set(guildId, { ...config, shieldEnabled: newState });
       const { updateGuildConfig } = await import('../../database/db.js');
       await updateGuildConfig(guildId, { shieldEnabled: newState });
-      await btn.update({ content: newState ? '🟢 Shield activé!' : '🔴 Shield désactivé!', embeds: [], components: [] });
+      await btn.editReply({ content: newState ? '🟢 Shield activé!' : '🔴 Shield désactivé!', embeds: [], components: [] });
+    });
+
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

@@ -47,69 +47,66 @@ export default {
       .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+    const userId = interaction.user.id;
 
-    await interaction.reply({
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({
       embeds: [confirmEmbed],
       components: [row],
-      ephemeral: true,
     });
 
-    client.buttonHandlers.set(`removechannel_confirm_${channel.id}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
-
-      try {
-        const channelName = channel.name;
-        await channel.delete(`${reason} | Supprimé par ${interaction.user.tag}`);
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('✅ Salon supprimé')
-            .setDescription(`Le salon **${channelName}** a été supprimé.\nRaison: ${reason}`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'removechannel',
-          channelName,
-          channelId: channel.id,
-          moderatorId: interaction.user.id,
-          reason,
-          timestamp: Date.now(),
-        });
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ Erreur')
-            .setDescription(err.message)
-            .setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`removechannel_confirm_${channel.id}`);
-      client.buttonHandlers.delete('removechannel_cancel');
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
     });
 
-    client.buttonHandlers.set('removechannel_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `removechannel_confirm_${channel.id}`) {
+        try {
+          const channelName = channel.name;
+          await channel.delete(`${reason} | Supprimé par ${interaction.user.tag}`);
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('✅ Salon supprimé')
+              .setDescription(`Le salon **${channelName}** a été supprimé.\nRaison: ${reason}`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'removechannel',
+            channelName,
+            channelId: channel.id,
+            moderatorId: interaction.user.id,
+            reason,
+            timestamp: Date.now(),
+          });
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0xff0000)
+              .setTitle('❌ Erreur')
+              .setDescription(err.message)
+              .setTimestamp()],
+            components: [],
+          });
+        }
+      } else if (btn.customId === 'removechannel_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(0x808080)
+            .setDescription('❌ Suppression de salon annulée.')],
+          components: [],
+        });
       }
+    });
 
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder()
-          .setColor(0x808080)
-          .setDescription('❌ Suppression de salon annulée.')],
-        components: [],
-      });
-
-      client.buttonHandlers.delete(`removechannel_confirm_${channel.id}`);
-      client.buttonHandlers.delete('removechannel_cancel');
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

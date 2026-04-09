@@ -42,58 +42,60 @@ export default {
       .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+    const userId = interaction.user.id;
 
-    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-    client.buttonHandlers.set(`unlock_confirm_${channel.id}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
-
-      try {
-        const everyoneRole = interaction.guild.roles.everyone;
-
-        await channel.permissionOverwrites.edit(everyoneRole, {
-          SendMessages: null,
-          AddReactions: null,
-        }, { reason: `Déverrouillé par ${interaction.user.tag}` });
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('🔓 Salon déverrouillé')
-            .setDescription(`Le salon ${channel} a été déverrouillé.\n@everyone peut à nouveau envoyer des messages.`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'unlock',
-          channelId: channel.id,
-          moderatorId: interaction.user.id,
-          timestamp: Date.now(),
-        });
-
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`unlock_confirm_${channel.id}`);
-      client.buttonHandlers.delete('unlock_cancel');
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
     });
 
-    client.buttonHandlers.set('unlock_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) return;
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Déverrouillage annulé.')],
-        components: [],
-      });
-      client.buttonHandlers.delete(`unlock_confirm_${channel.id}`);
-      client.buttonHandlers.delete('unlock_cancel');
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `unlock_confirm_${channel.id}`) {
+        try {
+          const everyoneRole = interaction.guild.roles.everyone;
+
+          await channel.permissionOverwrites.edit(everyoneRole, {
+            SendMessages: null,
+            AddReactions: null,
+          }, { reason: `Déverrouillé par ${interaction.user.tag}` });
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('🔓 Salon déverrouillé')
+              .setDescription(`Le salon ${channel} a été déverrouillé.\n@everyone peut à nouveau envoyer des messages.`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'unlock',
+            channelId: channel.id,
+            moderatorId: interaction.user.id,
+            timestamp: Date.now(),
+          });
+
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
+            components: [],
+          });
+        }
+      } else if (btn.customId === 'unlock_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Déverrouillage annulé.')],
+          components: [],
+        });
+      }
+    });
+
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

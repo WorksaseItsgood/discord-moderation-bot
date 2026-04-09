@@ -68,88 +68,90 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`kick_confirm_${target.id}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
+      });
 
-        try {
-          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-          if (!member) {
-            return btnInteraction.update({
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `kick_confirm_${target.id}`) {
+          try {
+            const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+            if (!member) {
+              return btn.editReply({
+                embeds: [new EmbedBuilder()
+                  .setColor(0xff4757)
+                  .setDescription('❌ Membre introuvable.')
+                  .setFooter({ text: 'Niotic Moderation' })
+                  .setTimestamp()],
+                components: [],
+              });
+            }
+
+            await member.kick(`${reason} | Exclu par ${interaction.user.tag}`);
+
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0x00ff99)
+                .setTitle('✅ Utilisateur exclu')
+                .setThumbnail(target.displayAvatarURL())
+                .setDescription(`**${target.tag}** a été exclu.\nRaison: ${reason}`)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, {
+                action: 'kick',
+                userId: target.id,
+                moderatorId: interaction.user.id,
+                reason,
+              });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'kick', {
+                target: target,
+                moderator: interaction.user,
+                reason: reason,
+              });
+            } catch (e) {
+              client.logger.error('[Kick] Log error:', e);
+            }
+          } catch (err) {
+            await btn.editReply({
               embeds: [new EmbedBuilder()
                 .setColor(0xff4757)
-                .setDescription('❌ Membre introuvable.')
+                .setTitle('❌ Échec de l\'exclusion')
+                .setDescription(err.message)
                 .setFooter({ text: 'Niotic Moderation' })
                 .setTimestamp()],
               components: [],
             });
           }
-
-          await member.kick(`${reason} | Exclu par ${interaction.user.tag}`);
-
-          await btnInteraction.update({
+        } else if (btn.customId === 'kick_cancel') {
+          await btn.editReply({
             embeds: [new EmbedBuilder()
-              .setColor(0x00ff99)
-              .setTitle('✅ Utilisateur exclu')
-              .setThumbnail(target.displayAvatarURL())
-              .setDescription(`**${target.tag}** a été exclu.\nRaison: ${reason}`)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, {
-              action: 'kick',
-              userId: target.id,
-              moderatorId: interaction.user.id,
-              reason,
-            });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'kick', {
-              target: target,
-              moderator: interaction.user,
-              reason: reason,
-            });
-          } catch (e) {
-            client.logger.error('[Kick] Log error:', e);
-          }
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec de l\'exclusion')
-              .setDescription(err.message)
+              .setColor(0x808080)
+              .setDescription('❌ Exclusion annulée.')
               .setFooter({ text: 'Niotic Moderation' })
               .setTimestamp()],
             components: [],
           });
         }
-
-        client.buttonHandlers.delete(`kick_confirm_${target.id}`);
-        client.buttonHandlers.delete('kick_cancel');
       });
 
-      client.buttonHandlers.set('kick_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Exclusion annulée.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`kick_confirm_${target.id}`);
-        client.buttonHandlers.delete('kick_cancel');
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Kick] Error:', error);

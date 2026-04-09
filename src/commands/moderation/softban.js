@@ -69,96 +69,98 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`softban_confirm_${target.id}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
+      });
 
-        try {
-          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-          if (!member) {
-            return btnInteraction.update({
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `softban_confirm_${target.id}`) {
+          try {
+            const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+            if (!member) {
+              return btn.editReply({
+                embeds: [new EmbedBuilder()
+                  .setColor(0xff4757)
+                  .setDescription('❌ Membre introuvable.')
+                  .setFooter({ text: 'Niotic Moderation' })
+                  .setTimestamp()],
+                components: [],
+              });
+            }
+
+            await member.ban({ reason: `${reason} | Softban par ${interaction.user.tag}`, deleteMessageDays: 7 });
+
+            // Auto unban after 1 second
+            setTimeout(async () => {
+              try {
+                await interaction.guild.members.unban(target.id, `Softban - debanni par ${interaction.user.tag}`);
+              } catch {}
+            }, 1000);
+
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0x00ff99)
+                .setTitle('💥 Softban effectué')
+                .setThumbnail(target.displayAvatarURL())
+                .setDescription(`**${target.tag}** a été softbanni.\nSes messages des 7 derniers jours ont été supprimés.\nL'utilisateur a été débanni automatiquement.\nRaison: ${reason}`)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, {
+                action: 'softban',
+                userId: target.id,
+                moderatorId: interaction.user.id,
+                reason,
+              });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'softban', {
+                target: target,
+                moderator: interaction.user,
+                reason: reason,
+              });
+            } catch (e) {
+              client.logger.error('[Softban] Log error:', e);
+            }
+
+          } catch (err) {
+            await btn.editReply({
               embeds: [new EmbedBuilder()
                 .setColor(0xff4757)
-                .setDescription('❌ Membre introuvable.')
+                .setTitle('❌ Échec du softban')
+                .setDescription(err.message)
                 .setFooter({ text: 'Niotic Moderation' })
                 .setTimestamp()],
               components: [],
             });
           }
-
-          await member.ban({ reason: `${reason} | Softban par ${interaction.user.tag}`, deleteMessageDays: 7 });
-
-          // Auto unban after 1 second
-          setTimeout(async () => {
-            try {
-              await interaction.guild.members.unban(target.id, `Softban - debanni par ${interaction.user.tag}`);
-            } catch {}
-          }, 1000);
-
-          await btnInteraction.update({
+        } else if (btn.customId === 'softban_cancel') {
+          await btn.editReply({
             embeds: [new EmbedBuilder()
-              .setColor(0x00ff99)
-              .setTitle('💥 Softban effectué')
-              .setThumbnail(target.displayAvatarURL())
-              .setDescription(`**${target.tag}** a été softbanni.\nSes messages des 7 derniers jours ont été supprimés.\nL'utilisateur a été débanni automatiquement.\nRaison: ${reason}`)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, {
-              action: 'softban',
-              userId: target.id,
-              moderatorId: interaction.user.id,
-              reason,
-            });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'softban', {
-              target: target,
-              moderator: interaction.user,
-              reason: reason,
-            });
-          } catch (e) {
-            client.logger.error('[Softban] Log error:', e);
-          }
-
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec du softban')
-              .setDescription(err.message)
+              .setColor(0x808080)
+              .setDescription('❌ Softban annulé.')
               .setFooter({ text: 'Niotic Moderation' })
               .setTimestamp()],
             components: [],
           });
         }
-
-        client.buttonHandlers.delete(`softban_confirm_${target.id}`);
-        client.buttonHandlers.delete('softban_cancel');
       });
 
-      client.buttonHandlers.set('softban_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Softban annulé.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`softban_confirm_${target.id}`);
-        client.buttonHandlers.delete('softban_cancel');
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Softban] Error:', error);

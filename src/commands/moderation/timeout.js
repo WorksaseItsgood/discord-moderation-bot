@@ -83,87 +83,89 @@ export default {
       .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+    const userId = interaction.user.id;
 
-    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-    client.buttonHandlers.set(`timeout_confirm_${target.id}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
+    });
 
-      try {
-        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-        if (!member) {
-          return btnInteraction.update({
-            embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Membre introuvable.')],
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `timeout_confirm_${target.id}`) {
+        try {
+          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+          if (!member) {
+            return btn.editReply({
+              embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Membre introuvable.')],
+              components: [],
+            });
+          }
+
+          const timeoutUntil = Date.now() + duration;
+          await member.timeout(duration, `${reason} | Timeout par ${interaction.user.tag}`);
+
+          const { setMute } = await import('../../../database/db.js');
+          await setMute(interaction.guild.id, target.id, {
+            mutedAt: Date.now(),
+            muteUntil: timeoutUntil,
+            duration: durationStr,
+            reason,
+            moderatorId: interaction.user.id,
+          });
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('⏱️ Timeout appliqué')
+              .setDescription(`**${target.tag}** est en timeout pour ${durationStr}.\nRaison: ${reason}\nFin: <t:${Math.floor(timeoutUntil / 1000)}:R>`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'timeout',
+            userId: target.id,
+            moderatorId: interaction.user.id,
+            reason,
+            duration: durationStr,
+            timeoutUntil,
+            timestamp: Date.now(),
+          });
+
+          setTimeout(async () => {
+            try {
+              const currentMember = await interaction.guild.members.fetch(target.id).catch(() => null);
+              if (currentMember && currentMember.isCommunicationDisabled()) {
+                await currentMember.timeout(null);
+                const { removeMute } = await import('../../../database/db.js');
+                await removeMute(interaction.guild.id, target.id);
+              }
+            } catch (err) {
+              console.error(`[Timeout] Erreur lors de la suppression automatique: ${err.message}`);
+            }
+          }, duration);
+
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec du timeout').setDescription(err.message).setTimestamp()],
             components: [],
           });
         }
-
-        const timeoutUntil = Date.now() + duration;
-        await member.timeout(duration, `${reason} | Timeout par ${interaction.user.tag}`);
-
-        const { setMute } = await import('../../../database/db.js');
-        await setMute(interaction.guild.id, target.id, {
-          mutedAt: Date.now(),
-          muteUntil: timeoutUntil,
-          duration: durationStr,
-          reason,
-          moderatorId: interaction.user.id,
-        });
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('⏱️ Timeout appliqué')
-            .setDescription(`**${target.tag}** est en timeout pour ${durationStr}.\nRaison: ${reason}\nFin: <t:${Math.floor(timeoutUntil / 1000)}:R>`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'timeout',
-          userId: target.id,
-          moderatorId: interaction.user.id,
-          reason,
-          duration: durationStr,
-          timeoutUntil,
-          timestamp: Date.now(),
-        });
-
-        setTimeout(async () => {
-          try {
-            const currentMember = await interaction.guild.members.fetch(target.id).catch(() => null);
-            if (currentMember && currentMember.isCommunicationDisabled()) {
-              await currentMember.timeout(null);
-              const { removeMute } = await import('../../../database/db.js');
-              await removeMute(interaction.guild.id, target.id);
-            }
-          } catch (err) {
-            console.error(`[Timeout] Erreur lors de la suppression automatique: ${err.message}`);
-          }
-        }, duration);
-
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec du timeout').setDescription(err.message).setTimestamp()],
+      } else if (btn.customId === 'timeout_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Timeout annulé.')],
           components: [],
         });
       }
-
-      client.buttonHandlers.delete(`timeout_confirm_${target.id}`);
-      client.buttonHandlers.delete('timeout_cancel');
     });
 
-    client.buttonHandlers.set('timeout_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) return;
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Timeout annulé.')],
-        components: [],
-      });
-      client.buttonHandlers.delete(`timeout_confirm_${target.id}`);
-      client.buttonHandlers.delete('timeout_cancel');
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

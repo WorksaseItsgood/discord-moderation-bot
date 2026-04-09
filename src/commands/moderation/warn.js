@@ -79,93 +79,95 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`warn_confirm_${target.id}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-
-        try {
-          const warning = {
-            reason,
-            moderatorId: interaction.user.id,
-            moderatorTag: interaction.user.tag,
-          };
-
-          await addWarning(interaction.guild.id, target.id, warning);
-          const warnings = await getWarnings(interaction.guild.id, target.id);
-          const warnCount = warnings.length;
-
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0x00ff99)
-              .setTitle('⚠️ Avertissement ajouté')
-              .setThumbnail(target.displayAvatarURL())
-              .setDescription(`**${target.tag}** a reçu un avertissement.\nRaison: ${reason}\nTotal des avertissements: ${warnCount}`)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, {
-              action: 'warn',
-              userId: target.id,
-              moderatorId: interaction.user.id,
-              reason,
-              warnCount,
-            });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'warn', {
-              target: target,
-              moderator: interaction.user,
-              reason: reason,
-              points: 1,
-              extra: `Total warnings: ${warnCount}`,
-            });
-          } catch (e) {
-            client.logger.error('[Warn] Log error:', e);
-          }
-
-          // Add violation point
-          try {
-            await addViolation(interaction.guild.id, target.id, 1);
-          } catch {}
-
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec de l\'avertissement')
-              .setDescription(err.message)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
-        }
-
-        client.buttonHandlers.delete(`warn_confirm_${target.id}`);
-        client.buttonHandlers.delete('warn_cancel');
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
       });
 
-      client.buttonHandlers.set('warn_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Avertissement annulé.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`warn_confirm_${target.id}`);
-        client.buttonHandlers.delete('warn_cancel');
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `warn_confirm_${target.id}`) {
+          try {
+            const warning = {
+              reason,
+              moderatorId: interaction.user.id,
+              moderatorTag: interaction.user.tag,
+            };
+
+            await addWarning(interaction.guild.id, target.id, warning);
+            const warnings = await getWarnings(interaction.guild.id, target.id);
+            const warnCount = warnings.length;
+
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0x00ff99)
+                .setTitle('⚠️ Avertissement ajouté')
+                .setThumbnail(target.displayAvatarURL())
+                .setDescription(`**${target.tag}** a reçu un avertissement.\nRaison: ${reason}\nTotal des avertissements: ${warnCount}`)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, {
+                action: 'warn',
+                userId: target.id,
+                moderatorId: interaction.user.id,
+                reason,
+                warnCount,
+              });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'warn', {
+                target: target,
+                moderator: interaction.user,
+                reason: reason,
+                points: 1,
+                extra: `Total warnings: ${warnCount}`,
+              });
+            } catch (e) {
+              client.logger.error('[Warn] Log error:', e);
+            }
+
+            // Add violation point
+            try {
+              await addViolation(interaction.guild.id, target.id, 1);
+            } catch {}
+
+          } catch (err) {
+            await btn.editReply({
+              embeds: [new EmbedBuilder()
+                .setColor(0xff4757)
+                .setTitle('❌ Échec de l\'avertissement')
+                .setDescription(err.message)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+          }
+        } else if (btn.customId === 'warn_cancel') {
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x808080)
+              .setDescription('❌ Avertissement annulé.')
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp()],
+            components: [],
+          });
+        }
+      });
+
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Warn] Error:', error);

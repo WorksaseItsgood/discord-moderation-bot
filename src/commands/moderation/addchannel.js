@@ -59,72 +59,69 @@ export default {
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
 
-    await interaction.reply({
+    const userId = interaction.user.id;
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({
       embeds: [confirmEmbed],
       components: [row],
-      ephemeral: true,
     });
 
-    client.buttonHandlers.set(`addchannel_confirm_${channelName}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
-
-      try {
-        const newChannel = await interaction.guild.channels.create({
-          name: channelName,
-          type: channelTypeNumber,
-          reason: `${reason} | Créé par ${interaction.user.tag}`,
-        });
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('✅ Salon créé')
-            .setDescription(`Le salon **${newChannel.name}** a été créé.\nType: ${channelType}\nRaison: ${reason}`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'addchannel',
-          channelId: newChannel.id,
-          channelName: newChannel.name,
-          channelType,
-          moderatorId: interaction.user.id,
-          reason,
-          timestamp: Date.now(),
-        });
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ Erreur')
-            .setDescription(err.message)
-            .setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`addchannel_confirm_${channelName}`);
-      client.buttonHandlers.delete('addchannel_cancel');
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
     });
 
-    client.buttonHandlers.set('addchannel_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `addchannel_confirm_${channelName}`) {
+        try {
+          const newChannel = await interaction.guild.channels.create({
+            name: channelName,
+            type: channelTypeNumber,
+            reason: `${reason} | Créé par ${interaction.user.tag}`,
+          });
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('✅ Salon créé')
+              .setDescription(`Le salon **${newChannel.name}** a été créé.\nType: ${channelType}\nRaison: ${reason}`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'addchannel',
+            channelId: newChannel.id,
+            channelName: newChannel.name,
+            channelType,
+            moderatorId: interaction.user.id,
+            reason,
+            timestamp: Date.now(),
+          });
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0xff0000)
+              .setTitle('❌ Erreur')
+              .setDescription(err.message)
+              .setTimestamp()],
+            components: [],
+          });
+        }
+      } else if (btn.customId === 'addchannel_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(0x808080)
+            .setDescription('❌ Création de salon annulée.')],
+          components: [],
+        });
       }
+    });
 
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder()
-          .setColor(0x808080)
-          .setDescription('❌ Création de salon annulée.')],
-        components: [],
-      });
-
-      client.buttonHandlers.delete(`addchannel_confirm_${channelName}`);
-      client.buttonHandlers.delete('addchannel_cancel');
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

@@ -63,76 +63,81 @@ export default {
         .setStyle(ButtonStyle.Secondary);
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+      const userId = interaction.user.id;
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`ban_confirm_${target.id}`, async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        try {
-          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-          if (member) {
-            await member.ban({ reason: `${reason} | Ban par ${interaction.user.tag}`, deleteMessageSeconds: deleteDays * 86400 });
-          } else {
-            await interaction.guild.members.ban(target.id, { reason: `${reason} | Ban par ${interaction.user.tag}` });
-          }
-          
-          // Success embed
-          const successEmbed = new EmbedBuilder()
-            .setTitle('✅ Utilisateur banni')
-            .setColor(0x00ff99)
-            .setThumbnail(target.displayAvatarURL())
-            .addFields(
-              { name: '👤 Utilisateur', value: `${target.tag}`, inline: true },
-              { name: '🛡️ Modérateur', value: interaction.user.tag, inline: true },
-              { name: '📝 Raison', value: reason, inline: false }
-            )
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp();
-          await btn.update({ embeds: [successEmbed], components: [] });
-
-          // Log to database
-          try {
-            await addLog(interaction.guild.id, { action: 'ban', userId: target.id, moderatorId: interaction.user.id, reason });
-          } catch {}
-
-          // Log to mod-logs channel
-          try {
-            await logModeration(interaction.guild, 'ban', {
-              target: target,
-              moderator: interaction.user,
-              reason: reason,
-              extra: `Messages supprimés: ${deleteDays} jour(s)`,
-            });
-          } catch (e) {
-            client.logger.error('[Ban] Log error:', e);
-          }
-        } catch (err) {
-          const errorEmbed = new EmbedBuilder()
-            .setColor(0xff4757)
-            .setTitle('❌ Échec du ban')
-            .setDescription(err.message)
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp();
-          await btn.update({ embeds: [errorEmbed], components: [] });
-        }
-        client.buttonHandlers.delete(`ban_confirm_${target.id}`);
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
       });
 
-      client.buttonHandlers.set('ban_cancel', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await btn.update({ 
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setTitle('❌ Annulé')
-            .setDescription('Ban annulé par l\'utilisateur.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()], 
-          components: [] 
-        });
-        client.buttonHandlers.delete(`ban_confirm_${target.id}`);
-        client.buttonHandlers.delete('ban_cancel');
+      collector.on('collect', async (btn) => {
+        await btn.deferUpdate();
+        if (btn.customId === `ban_confirm_${target.id}`) {
+          try {
+            const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+            if (member) {
+              await member.ban({ reason: `${reason} | Ban par ${interaction.user.tag}`, deleteMessageSeconds: deleteDays * 86400 });
+            } else {
+              await interaction.guild.members.ban(target.id, { reason: `${reason} | Ban par ${interaction.user.tag}` });
+            }
+
+            // Success embed
+            const successEmbed = new EmbedBuilder()
+              .setTitle('✅ Utilisateur banni')
+              .setColor(0x00ff99)
+              .setThumbnail(target.displayAvatarURL())
+              .addFields(
+                { name: '👤 Utilisateur', value: `${target.tag}`, inline: true },
+                { name: '🛡️ Modérateur', value: interaction.user.tag, inline: true },
+                { name: '📝 Raison', value: reason, inline: false }
+              )
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp();
+            await btn.editReply({ embeds: [successEmbed], components: [] });
+
+            // Log to database
+            try {
+              await addLog(interaction.guild.id, { action: 'ban', userId: target.id, moderatorId: interaction.user.id, reason });
+            } catch {}
+
+            // Log to mod-logs channel
+            try {
+              await logModeration(interaction.guild, 'ban', {
+                target: target,
+                moderator: interaction.user,
+                reason: reason,
+                extra: `Messages supprimés: ${deleteDays} jour(s)`,
+              });
+            } catch (e) {
+              client.logger.error('[Ban] Log error:', e);
+            }
+          } catch (err) {
+            const errorEmbed = new EmbedBuilder()
+              .setColor(0xff4757)
+              .setTitle('❌ Échec du ban')
+              .setDescription(err.message)
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp();
+            await btn.editReply({ embeds: [errorEmbed], components: [] });
+          }
+        } else if (btn.customId === 'ban_cancel') {
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x808080)
+              .setTitle('❌ Annulé')
+              .setDescription('Ban annulé par l\'utilisateur.')
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp()],
+            components: []
+          });
+        }
+      });
+
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
     } catch (error) {
       console.error('[Ban] Error:', error);

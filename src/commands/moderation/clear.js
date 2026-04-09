@@ -59,81 +59,83 @@ export default {
       .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+    const userId = interaction.user.id;
 
-    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-    client.buttonHandlers.set(`clear_confirm_${amount}_${targetUser?.id || 'all'}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
-
-      try {
-        const channel = interaction.channel;
-        let deleted = 0;
-
-        if (targetUser) {
-          const messages = await channel.messages.fetch({ limit: 100 });
-          const userMessages = messages.filter(m => m.author.id === targetUser.id);
-          const toDelete = userMessages.first(amount);
-
-          for (const msg of toDelete) {
-            try {
-              await msg.delete();
-              deleted++;
-            } catch {}
-          }
-        } else {
-          const messages = await channel.messages.fetch({ limit: amount });
-          for (const msg of messages.values()) {
-            try {
-              await msg.delete();
-              deleted++;
-            } catch {}
-          }
-        }
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('🗑️ Messages supprimés')
-            .setDescription(`${deleted} message(s) supprimé(s)${targetUser ? ` de **${targetUser.tag}**` : ''}.`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'clear',
-          userId: targetUser?.id || null,
-          moderatorId: interaction.user.id,
-          channelId: channel.id,
-          amount: deleted,
-          timestamp: Date.now(),
-        });
-
-        setTimeout(() => {
-          btnInteraction.deleteReply().catch(() => {});
-        }, 2000);
-
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`clear_confirm_${amount}_${targetUser?.id || 'all'}`);
-      client.buttonHandlers.delete('clear_cancel');
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
     });
 
-    client.buttonHandlers.set('clear_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) return;
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Suppression annulée.')],
-        components: [],
-      });
-      client.buttonHandlers.delete(`clear_confirm_${amount}_${targetUser?.id || 'all'}`);
-      client.buttonHandlers.delete('clear_cancel');
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `clear_confirm_${amount}_${targetUser?.id || 'all'}`) {
+        try {
+          const channel = interaction.channel;
+          let deleted = 0;
+
+          if (targetUser) {
+            const messages = await channel.messages.fetch({ limit: 100 });
+            const userMessages = messages.filter(m => m.author.id === targetUser.id);
+            const toDelete = userMessages.first(amount);
+
+            for (const msg of toDelete) {
+              try {
+                await msg.delete();
+                deleted++;
+              } catch {}
+            }
+          } else {
+            const messages = await channel.messages.fetch({ limit: amount });
+            for (const msg of messages.values()) {
+              try {
+                await msg.delete();
+                deleted++;
+              } catch {}
+            }
+          }
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('🗑️ Messages supprimés')
+              .setDescription(`${deleted} message(s) supprimé(s)${targetUser ? ` de **${targetUser.tag}**` : ''}.`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'clear',
+            userId: targetUser?.id || null,
+            moderatorId: interaction.user.id,
+            channelId: channel.id,
+            amount: deleted,
+            timestamp: Date.now(),
+          });
+
+          setTimeout(() => {
+            btn.deleteReply().catch(() => {});
+          }, 2000);
+
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
+            components: [],
+          });
+        }
+      } else if (btn.customId === 'clear_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Suppression annulée.')],
+          components: [],
+        });
+      }
+    });
+
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };

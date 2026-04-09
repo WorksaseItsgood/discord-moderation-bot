@@ -48,61 +48,63 @@ export default {
       .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+    const userId = interaction.user.id;
 
-    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-    client.buttonHandlers.set(`clearwarns_confirm_${target.id}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-      }
-
-      try {
-        const { clearWarnings, getWarnings } = await import('../../../database/db.js');
-        const warnings = await getWarnings(interaction.guild.id, target.id);
-        const warnCount = warnings.length;
-
-        await clearWarnings(interaction.guild.id, target.id);
-
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('🗑️ Avertissements effacés')
-            .setDescription(`Les ${warnCount} avertissement(s) de **${target.tag}** ont été effacés.`)
-            .setTimestamp()],
-          components: [],
-        });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'clearwarns',
-          userId: target.id,
-          moderatorId: interaction.user.id,
-          warnCount,
-          timestamp: Date.now(),
-        });
-
-        const { resetViolations } = await import('../../../database/db.js');
-        await resetViolations(interaction.guild.id, target.id);
-
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`clearwarns_confirm_${target.id}`);
-      client.buttonHandlers.delete('clearwarns_cancel');
+    const collector = reply.createMessageComponentCollector({
+      filter: (i) => i.user.id === userId,
+      time: 5 * 60 * 1000,
     });
 
-    client.buttonHandlers.set('clearwarns_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) return;
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Opération annulée.')],
-        components: [],
-      });
-      client.buttonHandlers.delete(`clearwarns_confirm_${target.id}`);
-      client.buttonHandlers.delete('clearwarns_cancel');
+    collector.on('collect', async (btn) => {
+      await btn.deferUpdate();
+      if (btn.customId === `clearwarns_confirm_${target.id}`) {
+        try {
+          const { clearWarnings, getWarnings } = await import('../../../database/db.js');
+          const warnings = await getWarnings(interaction.guild.id, target.id);
+          const warnCount = warnings.length;
+
+          await clearWarnings(interaction.guild.id, target.id);
+
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff00)
+              .setTitle('🗑️ Avertissements effacés')
+              .setDescription(`Les ${warnCount} avertissement(s) de **${target.tag}** ont été effacés.`)
+              .setTimestamp()],
+            components: [],
+          });
+
+          const { addLog } = await import('../../../database/db.js');
+          await addLog(interaction.guild.id, {
+            action: 'clearwarns',
+            userId: target.id,
+            moderatorId: interaction.user.id,
+            warnCount,
+            timestamp: Date.now(),
+          });
+
+          const { resetViolations } = await import('../../../database/db.js');
+          await resetViolations(interaction.guild.id, target.id);
+
+        } catch (err) {
+          await btn.editReply({
+            embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec').setDescription(err.message).setTimestamp()],
+            components: [],
+          });
+        }
+      } else if (btn.customId === 'clearwarns_cancel') {
+        await btn.editReply({
+          embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Opération annulée.')],
+          components: [],
+        });
+      }
+    });
+
+    collector.on('end', () => {
+      reply.edit({ components: [] }).catch(() => {});
     });
   },
 };
