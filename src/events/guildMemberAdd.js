@@ -1,4 +1,12 @@
+/**
+ * Guild Member Add Event
+ * Handles auto-role, raid protection, and welcome messages
+ */
+
 import { EmbedBuilder } from 'discord.js';
+import { getGuildConfig, getWhitelist } from '../database/db.js';
+import { checkJoinSpeed, autoKickFastJoins, quarantineUser } from '../handlers/raidHandler.js';
+import { logServer } from '../utils/logManager.js';
 
 export default {
   name: 'guildMemberAdd',
@@ -8,42 +16,62 @@ export default {
     const { guild, user } = member;
     const guildId = guild.id;
 
-    // Check whitelist
     try {
-      const { getWhitelist } = await import('../database/db.js');
-      const whitelist = await getWhitelist(guildId);
-      if (whitelist.users?.includes(member.id)) return;
-      if (member.roles?.cache.some(r => whitelist.roles?.includes(r.id))) return;
-    } catch {}
-
-    // Auto-role
-    const config = client.guildConfigs.get(guildId) || {};
-    if (config.autoRole) {
+      // Check whitelist
       try {
-        await member.roles.add(config.autoRole).catch(() => {});
+        const whitelist = await getWhitelist(guildId);
+        if (whitelist.users?.includes(member.id)) return;
+        if (member.roles?.cache.some(r => whitelist.roles?.includes(r.id))) return;
       } catch {}
-    }
 
-    // Raid mode quarantine
-    const raidState = client.raidMode?.get(guildId);
-    if (raidState?.active) {
-      // Quarantine new member during raid
-      let qRole = guild.roles.cache.find(r => r.name === 'Quarantined');
-      if (!qRole) {
-        qRole = await guild.roles.create({ name: 'Quarantined', color: 0xff6600 });
+      // Check join speed and raid protection
+      try {
+        const raidCheck = await checkJoinSpeed(guild, member, client);
+        
+        if (raidCheck.shouldQuarantine) {
+          await quarantineUser(member, 'Raid mode active - Auto quarantine', client);
+        }
+        
+        // Auto-kick fast joins during raid mode
+        if (raidCheck.autoEnabled) {
+          // Already logged in checkJoinSpeed
+        }
+      } catch (error) {
+        client.logger.error('[guildMemberAdd] Raid check error:', error);
       }
-      await member.roles.add(qRole, 'Raid mode active').catch(() => {});
-    }
 
-    // Welcome message
-    if (config.welcomeChannel && config.welcomeMessage) {
-      const channel = guild.channels.cache.get(config.welcomeChannel);
-      if (channel) {
-        const msg = config.welcomeMessage
-          .replace('{user}', member.toString())
-          .replace('{server}', guild.name);
-        try { await channel.send(msg); } catch {}
+      // Auto-role
+      const config = client.guildConfigs.get(guildId) || {};
+      if (config.autoRole) {
+        try {
+          await member.roles.add(config.autoRole).catch(() => {});
+        } catch {}
       }
+
+      // Welcome message
+      if (config.welcomeChannel && config.welcomeMessage) {
+        const channel = guild.channels.cache.get(config.welcomeChannel);
+        if (channel) {
+          const msg = config.welcomeMessage
+            .replace('{user}', member.toString())
+            .replace('{server}', guild.name);
+          try { await channel.send(msg); } catch {}
+        }
+      }
+
+      // Log the join
+      try {
+        await logServer(guild, 'join', {
+          user: member.user,
+          description: `Nouveau membre: ${member.user.tag}`,
+          extra: `Compte créé il y a ${Math.floor((Date.now() - member.user.createdTimestamp) / 86400000)} jour(s)`,
+        });
+      } catch (error) {
+        client.logger.error('[guildMemberAdd] Log error:', error);
+      }
+
+    } catch (error) {
+      client.logger.error('[guildMemberAdd] General error:', error);
     }
   },
 };

@@ -29,6 +29,13 @@ function initTables() {
       guild_id TEXT PRIMARY KEY,
       prefix TEXT DEFAULT '!',
       log_channel TEXT,
+      mod_log_channel TEXT,
+      server_log_channel TEXT,
+      message_log_channel TEXT,
+      raid_log_channel TEXT,
+      voice_log_channel TEXT,
+      role_log_channel TEXT,
+      log_level TEXT DEFAULT 'normal',
       muted_role TEXT,
       auto_role TEXT,
       welcome_channel TEXT,
@@ -41,6 +48,7 @@ function initTables() {
       auto_mod_enabled INTEGER DEFAULT 1,
       derank_threshold INTEGER DEFAULT 3,
       raid_threshold INTEGER DEFAULT 5,
+      raid_lock_duration INTEGER DEFAULT 15,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
 
@@ -97,6 +105,20 @@ function initTables() {
       timestamp INTEGER DEFAULT (strftime('%s', 'now'))
     );
 
+    CREATE TABLE IF NOT EXISTS raid_action_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT,
+      type TEXT,
+      triggered_by TEXT,
+      target_id TEXT,
+      reason TEXT,
+      threshold INTEGER,
+      join_speed TEXT,
+      count INTEGER,
+      duration INTEGER,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
     CREATE TABLE IF NOT EXISTS stats (
       guild_id TEXT,
       action TEXT,
@@ -104,6 +126,39 @@ function initTables() {
       PRIMARY KEY (guild_id, action)
     );
   `);
+  
+  // Migration: add new columns to existing tables
+  try {
+    const tableInfo = getDb().pragma('table_info(guild_config)');
+    const columns = tableInfo.map(col => col.name);
+    
+    if (!columns.includes('log_level')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN log_level TEXT DEFAULT "normal"');
+    }
+    if (!columns.includes('mod_log_channel')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN mod_log_channel TEXT');
+    }
+    if (!columns.includes('server_log_channel')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN server_log_channel TEXT');
+    }
+    if (!columns.includes('message_log_channel')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN message_log_channel TEXT');
+    }
+    if (!columns.includes('raid_log_channel')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN raid_log_channel TEXT');
+    }
+    if (!columns.includes('voice_log_channel')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN voice_log_channel TEXT');
+    }
+    if (!columns.includes('role_log_channel')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN role_log_channel TEXT');
+    }
+    if (!columns.includes('raid_lock_duration')) {
+      getDb().exec('ALTER TABLE guild_config ADD COLUMN raid_lock_duration INTEGER DEFAULT 15');
+    }
+  } catch (e) {
+    // Columns may already exist
+  }
 }
 
 // Guild Config
@@ -113,6 +168,13 @@ export function getGuildConfig(guildId) {
   return {
     prefix: row.prefix || '!',
     logChannel: row.log_channel,
+    modLogChannel: row.mod_log_channel,
+    serverLogChannel: row.server_log_channel,
+    messageLogChannel: row.message_log_channel,
+    raidLogChannel: row.raid_log_channel,
+    voiceLogChannel: row.voice_log_channel,
+    roleLogChannel: row.role_log_channel,
+    logLevel: row.log_level || 'normal',
     mutedRole: row.muted_role,
     autoRole: row.auto_role,
     welcomeChannel: row.welcome_channel,
@@ -125,18 +187,35 @@ export function getGuildConfig(guildId) {
     autoModEnabled: row.auto_mod_enabled !== 0,
     derankThreshold: row.derank_threshold || 3,
     raidThreshold: row.raid_threshold || 5,
+    raidLockDuration: row.raid_lock_duration || 15,
   };
 }
 
 export async function updateGuildConfig(guildId, updates) {
   const existing = getDb().prepare('SELECT 1 FROM guild_config WHERE guild_id = ?').get(guildId);
   const fieldMap = {
-    prefix: 'prefix', logChannel: 'log_channel', mutedRole: 'muted_role',
-    autoRole: 'auto_role', welcomeChannel: 'welcome_channel', welcomeMessage: 'welcome_message',
-    goodbyeChannel: 'goodbye_channel', goodbyeMessage: 'goodbye_message',
-    shieldEnabled: 'shield_enabled', antiSpamEnabled: 'anti_spam_enabled',
-    antiRaidEnabled: 'anti_raid_enabled', autoModEnabled: 'auto_mod_enabled',
-    derankThreshold: 'derank_threshold', raidThreshold: 'raid_threshold',
+    prefix: 'prefix',
+    logChannel: 'log_channel',
+    modLogChannel: 'mod_log_channel',
+    serverLogChannel: 'server_log_channel',
+    messageLogChannel: 'message_log_channel',
+    raidLogChannel: 'raid_log_channel',
+    voiceLogChannel: 'voice_log_channel',
+    roleLogChannel: 'role_log_channel',
+    logLevel: 'log_level',
+    mutedRole: 'muted_role',
+    autoRole: 'auto_role',
+    welcomeChannel: 'welcome_channel',
+    welcomeMessage: 'welcome_message',
+    goodbyeChannel: 'goodbye_channel',
+    goodbyeMessage: 'goodbye_message',
+    shieldEnabled: 'shield_enabled',
+    antiSpamEnabled: 'anti_spam_enabled',
+    antiRaidEnabled: 'anti_raid_enabled',
+    autoModEnabled: 'auto_mod_enabled',
+    derankThreshold: 'derank_threshold',
+    raidThreshold: 'raid_threshold',
+    raidLockDuration: 'raid_lock_duration',
   };
 
   if (existing) {
@@ -235,11 +314,39 @@ export function addRaidEvent(guildId, data) {
   getDb().prepare('INSERT INTO raid_events (guild_id, type, triggered_by, channel_count) VALUES (?, ?, ?, ?)').run(guildId, data.type, data.triggeredBy || '', data.channelCount || 0);
 }
 
+// Raid Action Log
+export function addRaidActionLog(guildId, data) {
+  const info = getDb().prepare(`
+    INSERT INTO raid_action_log (guild_id, type, triggered_by, target_id, reason, threshold, join_speed, count, duration)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    guildId,
+    data.type || 'unknown',
+    data.triggeredBy || 'system',
+    data.targetId || null,
+    data.reason || null,
+    data.threshold || null,
+    data.joinSpeed || null,
+    data.count || null,
+    data.duration || null
+  );
+  return info.lastInsertRowid;
+}
+
+export function getRaidActionLog(guildId, limit = 50) {
+  return getDb().prepare('SELECT * FROM raid_action_log WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?').all(guildId, limit);
+}
+
+export function clearRaidActionLog(guildId) {
+  getDb().prepare('DELETE FROM raid_action_log WHERE guild_id = ?').run(guildId);
+}
+
 export function setDerankSanction(guildId, userId, sanction) {}
 export function getDerankSanction(guildId, userId) { return null; }
 
 export default {
   getGuildConfig, updateGuildConfig, getWhitelist, addToWhitelist, removeFromWhitelist,
   addWarning, getWarnings, clearWarnings, addLog, addViolation, getStats,
-  addBackup, getBackup, addRaidEvent, setDerankSanction, getDerankSanction,
+  addBackup, getBackup, addRaidEvent, addRaidActionLog, getRaidActionLog, clearRaidActionLog,
+  setDerankSanction, getDerankSanction,
 };

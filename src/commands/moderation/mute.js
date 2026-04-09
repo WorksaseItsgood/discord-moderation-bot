@@ -1,8 +1,11 @@
 /**
  * /mute - Muet un utilisateur temporairement
+ * Beautiful embeds with proper logging
  */
 
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import { addLog } from '../../database/db.js';
+import { logModeration } from '../../utils/logManager.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -33,137 +36,174 @@ export default {
         .setDescription('Raison du mute')
         .setDescriptionLocalizations({ fr: 'Raison du mute', 'en-US': 'Reason for mute' })
         .setRequired(false)),
+
   name: 'mute',
   permissions: { user: [PermissionFlagsBits.MuteMembers], bot: [PermissionFlagsBits.MuteMembers] },
 
   async execute(interaction, client) {
-    const target = interaction.options.getUser('user');
-    const durationStr = interaction.options.getString('duration');
-    const reason = interaction.options.getString('reason') || 'Aucune raison fournie';
+    try {
+      const target = interaction.options.getUser('user');
+      const durationStr = interaction.options.getString('duration');
+      const reason = interaction.options.getString('reason') || 'Aucune raison fournie';
 
-    if (!target) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Veuillez spécifier un utilisateur à muter.')],
-        ephemeral: true,
-      });
-    }
-
-    const durationMs = {
-      '1h': 60 * 60 * 1000,
-      '24h': 24 * 60 * 60 * 1000,
-      '7d': 7 * 24 * 60 * 60 * 1000,
-    };
-
-    const duration = durationMs[durationStr];
-    if (!duration) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Durée invalide. Utilisez 1h, 24h ou 7j.')],
-        ephemeral: true,
-      });
-    }
-
-    const confirmEmbed = new EmbedBuilder()
-      .setTitle('🔇 Confirmation de mute')
-      .setColor(0xff9900)
-      .addFields(
-        { name: 'Utilisateur', value: `${target.tag} (${target.id})`, inline: true },
-        { name: 'Durée', value: durationStr, inline: true },
-        { name: 'Raison', value: reason }
-      )
-      .setTimestamp();
-
-    const confirmBtn = new ButtonBuilder()
-      .setCustomId(`mute_confirm_${target.id}`)
-      .setLabel('✅ Confirmer')
-      .setStyle(ButtonStyle.Danger);
-
-    const cancelBtn = new ButtonBuilder()
-      .setCustomId('mute_cancel')
-      .setLabel('❌ Annuler')
-      .setStyle(ButtonStyle.Secondary);
-
-    const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
-
-    await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
-
-    client.buttonHandlers.set(`mute_confirm_${target.id}`, async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) {
-        return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+      if (!target) {
+        return interaction.reply({
+          embeds: [new EmbedBuilder()
+            .setColor(0xff4757)
+            .setDescription('❌ Veuillez spécifier un utilisateur à muter.')
+            .setFooter({ text: 'Niotic Moderation' })
+            .setTimestamp()],
+          ephemeral: true,
+        });
       }
 
-      try {
-        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-        if (!member) {
-          return btnInteraction.update({
-            embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Membre introuvable.')],
+      const durationMs = {
+        '1h': 60 * 60 * 1000,
+        '24h': 24 * 60 * 60 * 1000,
+        '7d': 7 * 24 * 60 * 60 * 1000,
+      };
+
+      const duration = durationMs[durationStr];
+      if (!duration) {
+        return interaction.reply({
+          embeds: [new EmbedBuilder()
+            .setColor(0xff4757)
+            .setDescription('❌ Durée invalide.')
+            .setFooter({ text: 'Niotic Moderation' })
+            .setTimestamp()],
+          ephemeral: true,
+        });
+      }
+
+      const confirmEmbed = new EmbedBuilder()
+        .setTitle('🔇 Confirmation de mute')
+        .setColor(0xffd93d)
+        .setThumbnail(target.displayAvatarURL({ size: 256 }))
+        .addFields(
+          { name: '👤 Utilisateur', value: `${target.tag}\n\`${target.id}\``, inline: true },
+          { name: '🛡️ Modérateur', value: interaction.user.tag, inline: true },
+          { name: '⏱️ Durée', value: durationStr, inline: true },
+          { name: '📝 Raison', value: reason, inline: false }
+        )
+        .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+        .setTimestamp();
+
+      const confirmBtn = new ButtonBuilder()
+        .setCustomId(`mute_confirm_${target.id}`)
+        .setLabel('✅ Confirmer')
+        .setStyle(ButtonStyle.Danger);
+
+      const cancelBtn = new ButtonBuilder()
+        .setCustomId('mute_cancel')
+        .setLabel('❌ Annuler')
+        .setStyle(ButtonStyle.Secondary);
+
+      const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
+
+      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+
+      client.buttonHandlers.set(`mute_confirm_${target.id}`, async (btnInteraction) => {
+        if (btnInteraction.user.id !== interaction.user.id) {
+          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+        }
+
+        try {
+          const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+          if (!member) {
+            return btnInteraction.update({
+              embeds: [new EmbedBuilder()
+                .setColor(0xff4757)
+                .setDescription('❌ Membre introuvable.')
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+          }
+
+          const muteUntil = Date.now() + duration;
+          await member.timeout(duration, `${reason} | Muté par ${interaction.user.tag}`);
+
+          await btnInteraction.update({
+            embeds: [new EmbedBuilder()
+              .setColor(0x00ff99)
+              .setTitle('🔇 Utilisateur muté')
+              .setThumbnail(target.displayAvatarURL())
+              .setDescription(`**${target.tag}** a été muté pour ${durationStr}.\nRaison: ${reason}\nFin du mute: <t:${Math.floor(muteUntil / 1000)}:R>`)
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp()],
+            components: [],
+          });
+
+          // Log to database
+          try {
+            await addLog(interaction.guild.id, {
+              action: 'mute',
+              userId: target.id,
+              moderatorId: interaction.user.id,
+              reason,
+              duration: durationStr,
+              muteUntil,
+            });
+          } catch {}
+
+          // Log to mod-logs channel
+          try {
+            await logModeration(interaction.guild, 'mute', {
+              target: target,
+              moderator: interaction.user,
+              reason: reason,
+              duration: durationStr,
+            });
+          } catch (e) {
+            client.logger.error('[Mute] Log error:', e);
+          }
+
+          // Auto-unmute after duration
+          setTimeout(async () => {
+            try {
+              const currentMember = await interaction.guild.members.fetch(target.id).catch(() => null);
+              if (currentMember && currentMember.isCommunicationDisabled()) {
+                await currentMember.timeout(null);
+              }
+            } catch (err) {
+              client.logger.error(`[Mute] Auto-unmute error: ${err.message}`);
+            }
+          }, duration);
+
+        } catch (err) {
+          await btnInteraction.update({
+            embeds: [new EmbedBuilder()
+              .setColor(0xff4757)
+              .setTitle('❌ Échec du mute')
+              .setDescription(err.message)
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp()],
             components: [],
           });
         }
 
-        const muteUntil = Date.now() + duration;
-        await member.timeout(duration, `${reason} | Muté par ${interaction.user.tag}`);
+        client.buttonHandlers.delete(`mute_confirm_${target.id}`);
+        client.buttonHandlers.delete('mute_cancel');
+      });
 
-        const { setMute } = await import('../../../database/db.js');
-        await setMute(interaction.guild.id, target.id, {
-          mutedAt: Date.now(),
-          muteUntil,
-          duration: durationStr,
-          reason,
-          moderatorId: interaction.user.id,
-        });
-
+      client.buttonHandlers.set('mute_cancel', async (btnInteraction) => {
+        if (btnInteraction.user.id !== interaction.user.id) return;
         await btnInteraction.update({
           embeds: [new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('🔇 Utilisateur muté')
-            .setDescription(`**${target.tag}** a été muté pour ${durationStr}.\nRaison: ${reason}\nFin du mute: <t:${Math.floor(muteUntil / 1000)}:R>`)
+            .setColor(0x808080)
+            .setDescription('❌ Mute annulé.')
+            .setFooter({ text: 'Niotic Moderation' })
             .setTimestamp()],
           components: [],
         });
-
-        const { addLog } = await import('../../../database/db.js');
-        await addLog(interaction.guild.id, {
-          action: 'mute',
-          userId: target.id,
-          moderatorId: interaction.user.id,
-          reason,
-          duration: durationStr,
-          muteUntil,
-          timestamp: Date.now(),
-        });
-
-        setTimeout(async () => {
-          try {
-            const currentMember = await interaction.guild.members.fetch(target.id).catch(() => null);
-            if (currentMember && currentMember.isCommunicationDisabled()) {
-              await currentMember.timeout(null);
-              const { removeMute } = await import('../../../database/db.js');
-              await removeMute(interaction.guild.id, target.id);
-            }
-          } catch (err) {
-            console.error(`[Mute] Erreur lors de la suppression automatique du mute: ${err.message}`);
-          }
-        }, duration);
-
-      } catch (err) {
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec du mute').setDescription(err.message).setTimestamp()],
-          components: [],
-        });
-      }
-
-      client.buttonHandlers.delete(`mute_confirm_${target.id}`);
-      client.buttonHandlers.delete('mute_cancel');
-    });
-
-    client.buttonHandlers.set('mute_cancel', async (btnInteraction) => {
-      if (btnInteraction.user.id !== interaction.user.id) return;
-      await btnInteraction.update({
-        embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Mute annulé.')],
-        components: [],
+        client.buttonHandlers.delete(`mute_confirm_${target.id}`);
+        client.buttonHandlers.delete('mute_cancel');
       });
-      client.buttonHandlers.delete(`mute_confirm_${target.id}`);
-      client.buttonHandlers.delete('mute_cancel');
-    });
+    } catch (error) {
+      console.error('[Mute] Error:', error);
+      try {
+        await interaction.reply({ content: '❌ Une erreur est survenue.', ephemeral: true });
+      } catch {}
+    }
   },
 };

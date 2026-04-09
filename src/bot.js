@@ -8,6 +8,8 @@ import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import db, { getGuildConfig } from './database/db.js';
+import { setupRaidHandler } from './handlers/raidHandler.js';
+import { setLogClient } from './utils/logManager.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +23,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildPresences,
     GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User],
 });
@@ -85,16 +88,17 @@ async function loadEvents() {
   }
 }
 
-// Initialize guild configs
-async function initGuildConfigs() {
-  // Guild create will handle adding to cache
-}
-
 // Ready event
 client.once('ready', async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
   console.log(`📊 Serving ${c.guilds.cache.size} servers`);
   c.user.setActivity('/help | Niotic Moderation', { type: 3 });
+
+  // Initialize log manager with client
+  setLogClient(c);
+
+  // Initialize raid handler
+  setupRaidHandler(c);
 
   // Pre-load guild configs
   for (const guild of c.guilds.cache.values()) {
