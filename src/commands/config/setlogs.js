@@ -7,7 +7,31 @@
 
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType } from 'discord.js';
 import { updateGuildConfig, getGuildConfig } from '../../database/db.js';
-import { logModeration, logServer } from '../../utils/logManager.js';
+import { logModeration } from '../../utils/logManager.js';
+
+const CHANNEL_MAP = {
+  normal: ['mod-logs', 'server-logs'],
+  medium: ['mod-logs', 'server-logs', 'message-logs', 'raid-logs'],
+  extreme: ['mod-logs', 'server-logs', 'message-logs', 'raid-logs', 'voice-logs', 'role-logs'],
+};
+
+const CHANNEL_CONFIG = {
+  'mod-logs': 'modLogChannel',
+  'server-logs': 'serverLogChannel',
+  'message-logs': 'messageLogChannel',
+  'raid-logs': 'raidLogChannel',
+  'voice-logs': 'voiceLogChannel',
+  'role-logs': 'roleLogChannel',
+};
+
+const CHANNEL_PURPOSE = {
+  'mod-logs': 'Bans, Kicks, Mutes, Warns',
+  'server-logs': 'Joins, Leaves, Server updates',
+  'message-logs': 'Message edits, deletions',
+  'raid-logs': 'Raid events, protections',
+  'voice-logs': 'Voice joins, leaves, moves',
+  'role-logs': 'Role changes, assignments',
+};
 
 export default {
   data: new SlashCommandBuilder()
@@ -25,12 +49,16 @@ export default {
     try {
       const guild = interaction.guild;
       const guildId = guild.id;
+      const userId = interaction.user.id;
+
+      await interaction.deferReply({ ephemeral: true });
+
       const config = getGuildConfig(guildId);
-      
-      // Create the level selection embed
+      const currentLevel = config.logLevel || 'none';
+
       const embed = new EmbedBuilder()
         .setTitle('📋 Configuration des Logs')
-        .setDescription('Sélectionnez le niveau de surveillance souhaité en cliquant sur un des boutons ci-dessous.')
+        .setDescription('Sélectionnez le niveau de surveillance souhaité.')
         .setColor(0x5865F2)
         .setThumbnail(client.user.displayAvatarURL())
         .addFields(
@@ -41,198 +69,121 @@ export default {
         .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
         .setTimestamp();
 
-      // Create buttons for each level
-      const normalBtn = new ButtonBuilder()
-        .setCustomId('setlogs_normal')
-        .setLabel('🟢 Normal')
-        .setStyle(ButtonStyle.Success);
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('setlogs_normal').setLabel('🟢 Normal').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('setlogs_medium').setLabel('🟡 Moyen').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('setlogs_extreme').setLabel('🔴 Extrême').setStyle(ButtonStyle.Danger),
+      );
 
-      const mediumBtn = new ButtonBuilder()
-        .setCustomId('setlogs_medium')
-        .setLabel('🟡 Moyen')
-        .setStyle(ButtonStyle.Primary);
+      const reply = await interaction.editReply({ embeds: [embed], components: [row] });
 
-      const extremeBtn = new ButtonBuilder()
-        .setCustomId('setlogs_extreme')
-        .setLabel('🔴 Extrême')
-        .setStyle(ButtonStyle.Danger);
-
-      const row = new ActionRowBuilder().addComponents(normalBtn, mediumBtn, extremeBtn);
-
-      await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-
-      // Set up button handlers
-      client.buttonHandlers.set('setlogs_normal', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        await handleLevelSelection(btn, client, 'normal', guild, guildId);
-        client.buttonHandlers.delete('setlogs_normal');
-        client.buttonHandlers.delete('setlogs_medium');
-        client.buttonHandlers.delete('setlogs_extreme');
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
       });
 
-      client.buttonHandlers.set('setlogs_medium', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+      collector.on('collect', async (btn) => {
+        const level = btn.customId.replace('setlogs_', '');
+        if (!['normal', 'medium', 'extreme'].includes(level)) return;
+
+        await btn.deferUpdate();
+
+        const createdChannels = [];
+        const existingChannels = [];
+        const everyoneRole = guild.roles.everyone;
+        const botMember = guild.members.cache.get(client.user.id) || await guild.members.fetch(client.user.id);
+
+        for (const channelName of CHANNEL_MAP[level]) {
+          let existing = guild.channels.cache.find((c) => c.name === channelName);
+
+          if (existing) {
+            existingChannels.push(existing);
+            const field = CHANNEL_CONFIG[channelName];
+            if (field) await updateGuildConfig(guildId, { [field]: existing.id });
+          } else {
+            try {
+              const newChannel = await guild.channels.create({
+                name: channelName,
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                  { id: everyoneRole.id, deny: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
+                  { id: botMember.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'] },
+                ],
+                topic: `Niotic ${level.charAt(0).toUpperCase() + level.slice(1)} Log — Ne pas supprimer`,
+              });
+              createdChannels.push(newChannel);
+              const field = CHANNEL_CONFIG[channelName];
+              if (field) await updateGuildConfig(guildId, { [field]: newChannel.id });
+
+              // Send welcome message to new channel
+              const purpose = CHANNEL_PURPOSE[channelName] || 'General logging';
+              await newChannel.send({
+                embeds: [
+                  new EmbedBuilder()
+                    .setTitle(`📋 ${newChannel.name}`)
+                    .setColor(0x5865F2)
+                    .setDescription(`Ce salon est configuré pour les logs de niveau **${level}**.`)
+                    .addFields({ name: '🎯 Type', value: purpose, inline: true })
+                    .setFooter({ text: 'Niotic Moderation' })
+                    .setTimestamp(),
+                ],
+              }).catch(() => {});
+            } catch (err) {
+              console.error(`[SetLogs] Failed to create ${channelName}:`, err.message);
+            }
+          }
         }
-        await handleLevelSelection(btn, client, 'medium', guild, guildId);
-        client.buttonHandlers.delete('setlogs_normal');
-        client.buttonHandlers.delete('setlogs_medium');
-        client.buttonHandlers.delete('setlogs_extreme');
+
+        await updateGuildConfig(guildId, { logLevel: level });
+
+        const emoji = level === 'normal' ? '🟢' : level === 'medium' ? '🟡' : '🔴';
+        const color = level === 'normal' ? 0x00ff99 : level === 'medium' ? 0xffa502 : 0xff0000;
+
+        const successEmbed = new EmbedBuilder()
+          .setTitle(`${emoji} Logs configurés — Niveau ${level.charAt(0).toUpperCase() + level.slice(1)}`)
+          .setColor(color)
+          .setThumbnail(guild.iconURL() || client.user.displayAvatarURL())
+          .setDescription(`Le système de logs a été configuré avec le niveau **${level}**.`)
+          .addFields({
+            name: '📁 Salons créés',
+            value: createdChannels.length > 0 ? createdChannels.map((c) => c.toString()).join('\n') : 'Aucun (existant utilisé)',
+            inline: false,
+          })
+          .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+          .setTimestamp();
+
+        if (existingChannels.length > 0) {
+          successEmbed.addFields({
+            name: '✅ Salons existants utilisés',
+            value: existingChannels.map((c) => c.toString()).join('\n'),
+            inline: false,
+          });
+        }
+
+        await btn.editReply({ embeds: [successEmbed], components: [] });
+
+        // Log the configuration change
+        try {
+          await logModeration(guild, 'config', {
+            target: { tag: 'Log System', id: 'system' },
+            moderator: btn.user,
+            reason: `Log level changed to ${level}`,
+            extra: `Created: ${createdChannels.length}, Existing: ${existingChannels.length}`,
+          });
+        } catch (e) {
+          console.error('[SetLogs] Failed to log:', e);
+        }
       });
 
-      client.buttonHandlers.set('setlogs_extreme', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        await handleLevelSelection(btn, client, 'extreme', guild, guildId);
-        client.buttonHandlers.delete('setlogs_normal');
-        client.buttonHandlers.delete('setlogs_medium');
-        client.buttonHandlers.delete('setlogs_extreme');
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
 
     } catch (error) {
       console.error('[SetLogs] Error:', error);
       try {
-        await interaction.reply({ content: '❌ Une erreur est survenue.', ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur: ${error.message}`, ephemeral: true });
       } catch {}
     }
   },
 };
-
-async function handleLevelSelection(btn, client, level, guild, guildId) {
-  try {
-    // Update button to show processing
-    await btn.update({ content: '⚙️ Configuration en cours...', embeds: [], components: [] });
-
-    const channelMap = {
-      normal: ['mod-logs', 'server-logs'],
-      medium: ['mod-logs', 'server-logs', 'message-logs', 'raid-logs'],
-      extreme: ['mod-logs', 'server-logs', 'message-logs', 'raid-logs', 'voice-logs', 'role-logs'],
-    };
-
-    const channelConfigMap = {
-      'mod-logs': 'modLogChannel',
-      'server-logs': 'serverLogChannel',
-      'message-logs': 'messageLogChannel',
-      'raid-logs': 'raidLogChannel',
-      'voice-logs': 'voiceLogChannel',
-      'role-logs': 'roleLogChannel',
-    };
-
-    const createdChannels = [];
-    const existingChannels = [];
-    const everyoneRole = guild.roles.everyone;
-    const botMember = guild.members.cache.get(client.user.id);
-
-    for (const channelName of channelMap[level]) {
-      let existingChannel = guild.channels.cache.find(c => c.name === channelName);
-
-      if (existingChannel) {
-        existingChannels.push(existingChannel);
-        // Update config with existing channel
-        const configField = channelConfigMap[channelName];
-        await updateGuildConfig(guildId, { [configField]: existingChannel.id });
-      } else {
-        // Create new channel
-        try {
-          const newChannel = await guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildText,
-            permissionOverwrites: [
-              {
-                id: everyoneRole.id,
-                deny: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-              },
-              {
-                id: botMember.id,
-                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'],
-              },
-            ],
-            topic: `Niotic ${level.charAt(0).toUpperCase() + level.slice(1)} Log Channel - Ne pas supprimer`,
-          });
-          createdChannels.push(newChannel);
-          
-          // Update config
-          const configField = channelConfigMap[channelName];
-          await updateGuildConfig(guildId, { [configField]: newChannel.id });
-        } catch (error) {
-          console.error(`[SetLogs] Failed to create channel ${channelName}:`, error);
-        }
-      }
-    }
-
-    // Update the log level in database
-    await updateGuildConfig(guildId, { logLevel: level });
-
-    // Update client cache
-    let config = client.guildConfigs.get(guildId) || {};
-    config.logLevel = level;
-    client.guildConfigs.set(guildId, config);
-
-    // Create success embed with details
-    const levelEmoji = level === 'normal' ? '🟢' : level === 'medium' ? '🟡' : '🔴';
-    const levelColor = level === 'normal' ? 0x00ff99 : level === 'medium' ? 0xffa502 : 0xff0000;
-
-    const successEmbed = new EmbedBuilder()
-      .setTitle(`${levelEmoji} Logs configurés - Niveau ${level.charAt(0).toUpperCase() + level.slice(1)}`)
-      .setColor(levelColor)
-      .setThumbnail(guild.iconURL() || client.user.displayAvatarURL())
-      .setDescription(`Le système de logs a été configuré avec le niveau **${level}**.`)
-      .addFields(
-        { name: '📁 Salons créés', value: createdChannels.length > 0 ? createdChannels.map(c => c.toString()).join('\n') : 'Aucun (existant utilisé)', inline: false }
-      )
-      .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
-      .setTimestamp();
-
-    if (existingChannels.length > 0) {
-      successEmbed.addFields({ name: '✅ Salons existants utilisés', value: existingChannels.map(c => c.toString()).join('\n'), inline: false });
-    }
-
-    // Send success message
-    await btn.editReply({ content: null, embeds: [successEmbed], components: [] });
-
-    // Log the configuration change
-    try {
-      await logModeration(guild, 'config', {
-        target: { tag: 'Log System', id: 'system' },
-        moderator: btn.user,
-        reason: `Log level changed to ${level}`,
-        extra: `Created: ${createdChannels.length}, Existing: ${existingChannels.length}`,
-      });
-    } catch (e) {
-      console.error('[SetLogs] Failed to log:', e);
-    }
-
-    // Send a welcome message to each created channel
-    for (const channel of createdChannels) {
-      try {
-        const welcomeEmbed = new EmbedBuilder()
-          .setTitle(`📋 ${channel.name} - Log Channel`)
-          .setColor(0x5865F2)
-          .setDescription(`Ce salon est configuré pour les logs de niveau **${level}**.`)
-          .addFields({ name: '🎯 Type', value: getChannelPurpose(channel.name), inline: true })
-          .setFooter({ text: 'Niotic Moderation' })
-          .setTimestamp();
-        await channel.send({ embeds: [welcomeEmbed] }).catch(() => {});
-      } catch {}
-    }
-
-  } catch (error) {
-    console.error('[SetLogs] Handle level selection error:', error);
-    await btn.editReply({ content: '❌ Erreur lors de la configuration des logs.', embeds: [], components: [] });
-  }
-}
-
-function getChannelPurpose(channelName) {
-  const purposes = {
-    'mod-logs': 'Bans, Kicks, Mutes, Warns',
-    'server-logs': 'Joins, Leaves, Server updates',
-    'message-logs': 'Message edits, deletions',
-    'raid-logs': 'Raid events, protections',
-    'voice-logs': 'Voice joins, leaves, moves',
-    'role-logs': 'Role changes, assignments',
-  };
-  return purposes[channelName] || 'General logging';
-}

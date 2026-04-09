@@ -1,6 +1,5 @@
 /**
  * /purge - Supprimer en masse des messages
- * Beautiful embeds with proper logging
  */
 
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
@@ -24,7 +23,7 @@ export default {
     .addUserOption(option =>
       option.setName('user')
         .setNameLocalizations({ fr: 'utilisateur', 'en-US': 'user' })
-        .description('Filter by user (optional)')
+        .setDescription('Filtrer par utilisateur (optionnel)')
         .setDescriptionLocalizations({ fr: 'Filtrer par utilisateur (optionnel)', 'en-US': 'Filter by user (optional)' })
         .setRequired(false)),
 
@@ -35,6 +34,7 @@ export default {
     try {
       const amount = interaction.options.getInteger('amount');
       const targetUser = interaction.options.getUser('user');
+      const userId = interaction.user.id;
 
       if (!amount || amount < 1 || amount > 1000) {
         return interaction.reply({
@@ -49,7 +49,7 @@ export default {
 
       const confirmEmbed = new EmbedBuilder()
         .setTitle('⚠️ Confirmation de purge')
-        .setColor(0xff6b81)
+        .setColor(0xffa502)
         .setThumbnail(interaction.user.displayAvatarURL())
         .addFields(
           { name: '🧹 Nombre', value: `${amount} message(s)`, inline: true },
@@ -61,7 +61,7 @@ export default {
         .setTimestamp();
 
       const confirmBtn = new ButtonBuilder()
-        .setCustomId(`purge_confirm_${amount}_${targetUser?.id || 'all'}`)
+        .setCustomId('purge_confirm')
         .setLabel('✅ Confirmer la purge')
         .setStyle(ButtonStyle.Danger);
 
@@ -72,42 +72,74 @@ export default {
 
       const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
 
-      await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const reply = await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
 
-      client.buttonHandlers.set(`purge_confirm_${amount}_${targetUser?.id || 'all'}`, async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) {
-          return btnInteraction.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 2 * 60 * 1000,
+      });
+
+      collector.on('collect', async (btn) => {
+        const cid = btn.customId;
+
+        if (cid === 'purge_cancel') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor(0x808080)
+              .setTitle('❌ Annulé')
+              .setDescription('Purge annulée par l\'utilisateur.')
+              .setFooter({ text: 'Niotic Moderation' })
+              .setTimestamp()],
+            components: [],
+          });
+          collector.stop();
+          return;
         }
 
-        try {
+        if (cid === 'purge_confirm') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            content: '🧹 Suppression en cours...',
+            embeds: [],
+            components: [],
+          });
+
           const channel = interaction.channel;
           let deleted = 0;
-          let remaining = amount;
 
-          while (remaining > 0) {
-            const batchSize = Math.min(remaining, 100);
-            const messages = await channel.messages.fetch({ limit: batchSize });
+          try {
+            const fetched = await channel.messages.fetch({ limit: amount });
+            let messages = targetUser
+              ? fetched.filter(m => m.author.id === targetUser.id)
+              : fetched;
 
-            if (messages.size === 0) break;
+            messages = Array.from(messages.values()).slice(0, amount);
 
-            let toDelete = targetUser
-              ? messages.filter(m => m.author.id === targetUser.id)
-              : messages;
-
-            toDelete = toDelete.first(batchSize);
-
-            for (const msg of toDelete) {
+            for (const msg of messages) {
               try {
                 await msg.delete();
                 deleted++;
-                remaining--;
               } catch {}
             }
-
-            if (messages.size < batchSize) break;
+          } catch (err) {
+            await btn.editReply({
+              content: null,
+              embeds: [new EmbedBuilder()
+                .setColor(0xff4757)
+                .setTitle('❌ Échec de la purge')
+                .setDescription(err.message)
+                .setFooter({ text: 'Niotic Moderation' })
+                .setTimestamp()],
+              components: [],
+            });
+            collector.stop();
+            return;
           }
 
-          await btnInteraction.update({
+          await btn.editReply({
+            content: null,
             embeds: [new EmbedBuilder()
               .setColor(0x00ff99)
               .setTitle('🗑️ Purge terminée')
@@ -118,7 +150,6 @@ export default {
             components: [],
           });
 
-          // Log to database
           try {
             await addLog(interaction.guild.id, {
               action: 'purge',
@@ -129,7 +160,6 @@ export default {
             });
           } catch {}
 
-          // Log to message-logs channel
           try {
             await logMessage(interaction.guild, 'purge', {
               user: targetUser || { tag: 'Multiple users', id: 'N/A' },
@@ -141,43 +171,18 @@ export default {
             client.logger.error('[Purge] Log error:', e);
           }
 
-          setTimeout(() => {
-            btnInteraction.deleteReply().catch(() => {});
-          }, 2000);
-
-        } catch (err) {
-          await btnInteraction.update({
-            embeds: [new EmbedBuilder()
-              .setColor(0xff4757)
-              .setTitle('❌ Échec de la purge')
-              .setDescription(err.message)
-              .setFooter({ text: 'Niotic Moderation' })
-              .setTimestamp()],
-            components: [],
-          });
+          collector.stop();
         }
-
-        client.buttonHandlers.delete(`purge_confirm_${amount}_${targetUser?.id || 'all'}`);
-        client.buttonHandlers.delete('purge_cancel');
       });
 
-      client.buttonHandlers.set('purge_cancel', async (btnInteraction) => {
-        if (btnInteraction.user.id !== interaction.user.id) return;
-        await btnInteraction.update({
-          embeds: [new EmbedBuilder()
-            .setColor(0x808080)
-            .setDescription('❌ Purge annulée.')
-            .setFooter({ text: 'Niotic Moderation' })
-            .setTimestamp()],
-          components: [],
-        });
-        client.buttonHandlers.delete(`purge_confirm_${amount}_${targetUser?.id || 'all'}`);
-        client.buttonHandlers.delete('purge_cancel');
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
+
     } catch (error) {
       console.error('[Purge] Error:', error);
       try {
-        await interaction.reply({ content: '❌ Une erreur est survenue.', ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur: ${error.message}`, ephemeral: true });
       } catch {}
     }
   },
