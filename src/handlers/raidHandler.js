@@ -4,8 +4,8 @@
  */
 
 import { EmbedBuilder, ChannelType } from 'discord.js';
-import { getGuildConfig, updateGuildConfig, addRaidActionLog } from '../database/db.js';
-import { logRaid, logModeration } from '../utils/logManager.js';
+import { getGuildConfig, updateGuildConfig, addRaidActionLog, getRaidConfig } from '../database/db.js';
+import { logRaid, logModeration, logDerank } from '../utils/logManager.js';
 
 let lockedChannels = new Map();
 let quarantineRoles = new Map();
@@ -48,6 +48,8 @@ async function logRaidAction(guild, action, data, client) {
         raidQuarantine: '🔒', raidConfig: '⚙️', raidThreshold: '📊',
         raidDerank: '📉', raidUnlock: '🔓', raidLock: '🔒',
         raidAutoEnable: '🤖', joinSpeed: '⚡',
+        raidChannelCreate: '📁', raidChannelDelete: '🗑️',
+        raidMassBan: '🔨', raidMassKick: '🦶', raidSpam: '💬',
       };
       const emoji = emojiMap[action] || '🛡️';
       
@@ -100,7 +102,6 @@ export async function enableRaidMode(guild, triggeredBy, client, type = 'manual'
     triggeredBy,
     lockDuration,
   });
-
   const channels = guild.channels.cache.filter(c => 
     c.type === ChannelType.GuildText || 
     c.type === ChannelType.GuildVoice || 
@@ -141,7 +142,6 @@ export async function enableRaidMode(guild, triggeredBy, client, type = 'manual'
 
   // Store lock timestamp for auto-unlock
   client.raidMode.set(`${guild.id}:lockTimestamp`, Date.now());
-
   return count;
 }
 
@@ -173,7 +173,6 @@ export async function disableRaidMode(guild, client) {
 
   // Calculate how long the lock was active
   const lockTime = lockTimestamp ? Math.round((Date.now() - lockTimestamp) / 60000) : 0;
-
   // Log the action
   await logRaidAction(guild, 'raidEnd', {
     triggeredBy: 'System',
@@ -289,7 +288,68 @@ export async function autoKickFastJoins(guild, member, client) {
 }
 
 export function getRaidStatus(guildId, client) {
-  return client.raidMode?.get(guildId) || { active: false };
+  const raidConfig = getRaidConfig(guildId);
+  const raidState = client.raidMode?.get(guildId) || { active: false };
+  return {
+    ...raidState,
+    config: raidConfig,
+    active: raidState.active || raidConfig.autoDerankEnabled,
+  };
+}
+
+// Auto-derank user - removes all roles and optionally DMs them
+export async function autoDerankUser(guild, member, reason, client) {
+  try {
+    const guildId = guild.id;
+    const raidConfig = getRaidConfig(guildId);
+    const guildConfig = client?.guildConfigs?.get(guildId) || {};
+    
+    if (!raidConfig.autoDerankEnabled && !guildConfig.antiraidEnabled) return false;
+    if (member.permissions.has('Administrator')) return false;
+    if (member.roles.highest.position >= guild.me.roles.highest.position) return false;
+    
+    // Store original roles for logging
+    const roles = member.roles.cache.filter(r => r.id !== guild.roles.everyone.id);
+    const roleNames = roles.map(r => r.name).join(', ') || 'Aucun';
+    
+    // Check for derank delay
+    const derankDelay = raidConfig.raidDerankDelay || 3;
+    if (derankDelay > 0) {
+      await new Promise(resolve => setTimeout(resolve, derankDelay * 1000));
+    }
+    
+    // Remove all roles (except @everyone)
+    await member.roles.set([], reason);
+    
+    // DM the user if enabled
+    const dmEnabled = raidConfig.raidDmOnDerank || raidConfig.dmOnDerankEnabled || guildConfig.raid_dm_on_derank;
+    if (dmEnabled) {
+      try {
+        await member.send({
+          embeds: [new EmbedBuilder()
+            .setTitle('⚠️ Rôles supprimés')
+            .setColor(0xff4757)
+            .setDescription(`Vous avez été déranké car votre activité a déclenché la protection anti-raid. Contactez un administrateur si vous pensez à une erreur.`)
+            .addFields({ name: '📝 Raison', value: reason, inline: false })
+            .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+            .setTimestamp()
+          ]
+        });
+      } catch {}
+    }
+    
+    // Log the derank action
+    await logDerank(guild, {
+      target: member.user,
+      reason,
+      roles: roleNames,
+    });
+    
+    return true;
+  } catch (error) {
+    client.logger.error('[RaidHandler] autoDerankUser error:', error);
+    return false;
+  }
 }
 
 export async function quarantineUser(member, reason, client) {
@@ -397,4 +457,5 @@ export default {
   quarantineUser,
   emergencyDerank,
   getJoinStats,
+  autoDerankUser,
 };

@@ -1,12 +1,21 @@
 /**
  * /raid - Anti-Raid configuration panel
- * Full control over raid protection settings
+ * Full control over raid protection settings with interactive buttons
  */
 
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
-import { getGuildConfig, updateGuildConfig, getRaidActionLog } from '../../database/db.js';
-import { enableRaidMode, disableRaidMode, getRaidStatus } from '../../handlers/raidHandler.js';
-import { logRaid } from '../../utils/logManager.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { getRaidConfig, updateRaidConfig, updateGuildConfig, getRaidActionLog, addRaidActionLog, trackRaidAction, clearRaidActions } from '../../database/db.js';
+import { autoDerankUser } from '../../handlers/raidHandler.js';
+import { logRaid, logDerank } from '../../utils/logManager.js';
+
+const COLORS = {
+  success: 0x00ff99,
+  error: 0xff4757,
+  warning: 0xffa502,
+  info: 0x5865F2,
+  raid: 0xff0000,
+  shield: 0x9b59b6,
+};
 
 export default {
   data: new SlashCommandBuilder()
@@ -24,280 +33,299 @@ export default {
     try {
       const guild = interaction.guild;
       const guildId = guild.id;
-      const config = getGuildConfig(guildId);
-      const raidState = getRaidStatus(guildId, client);
+      const userId = interaction.user.id;
 
-      // Get current join speed if available
-      const joinData = client.joinTracker?.get(guildId) || {};
-      const recentJoins = joinData.recentJoins || [];
-      const joinSpeed = recentJoins.length > 0 ? `${recentJoins.length} joins détectés` : 'N/A';
+      await interaction.deferReply({ ephemeral: true });
 
-      // Create main embed with shield visual
-      const statusColor = raidState.active ? 0xff0000 : 0x00ff99;
-      const statusEmoji = raidState.active ? '🔒' : '🟢';
-      const statusText = raidState.active ? 'ACTIF' : 'Inactif';
+      const reply = await interaction.editReply({
+        content: null,
+        embeds: [await buildMainEmbed(guildId, client)],
+        components: buildMainButtons(),
+      });
 
-      const embed = new EmbedBuilder()
-        .setTitle('🛡️ Panneau de Configuration Anti-Raid')
-        .setColor(0x9b59b6)
-        .setThumbnail(client.user.displayAvatarURL())
-        .addFields(
-          { name: '🔒 Statut Raid Mode', value: `${statusEmoji} ${statusText}`, inline: true },
-          { name: '📊 Seuil actuel', value: `${config.raidThreshold || 5} joins/10s`, inline: true },
-          { name: '⏱️ Durée de lock', value: `${config.raidLockDuration || 15} minutes`, inline: true },
-          { name: '⚡ Vitesse de join', value: joinSpeed, inline: true },
-          { name: '🎯 Type', value: raidState.type || 'N/A', inline: true },
-          { name: '👤 Déclenché par', value: raidState.triggeredBy || 'N/A', inline: true }
-        )
-        .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
-        .setTimestamp();
+      const collector = reply.createMessageComponentCollector({
+        filter: (i) => i.user.id === userId,
+        time: 5 * 60 * 1000,
+      });
 
-      // Create action buttons
-      const enableBtn = new ButtonBuilder()
-        .setCustomId('raid_enable')
-        .setLabel('🔒 Activer Raid Mode')
-        .setStyle(ButtonStyle.Danger);
+      collector.on('collect', async (btn) => {
+        const cid = btn.customId;
 
-      const disableBtn = new ButtonBuilder()
-        .setCustomId('raid_disable')
-        .setLabel('🟢 Désactiver Raid Mode')
-        .setStyle(ButtonStyle.Success);
-
-      const thresholdBtn = new ButtonBuilder()
-        .setCustomId('raid_threshold')
-        .setLabel('📊 Changer Seuil')
-        .setStyle(ButtonStyle.Primary);
-
-      const durationBtn = new ButtonBuilder()
-        .setCustomId('raid_duration')
-        .setLabel('⏱️ Changer Durée Lock')
-        .setStyle(ButtonStyle.Primary);
-
-      const viewLogBtn = new ButtonBuilder()
-        .setCustomId('raid_viewlog')
-        .setLabel('📋 Voir Logs')
-        .setStyle(ButtonStyle.Secondary);
-
-      const derankBtn = new ButtonBuilder()
-        .setCustomId('raid_derank')
-        .setLabel('📉 Emergency Derank')
-        .setStyle(ButtonStyle.Danger);
-
-      const row1 = new ActionRowBuilder().addComponents(enableBtn, disableBtn);
-      const row2 = new ActionRowBuilder().addComponents(thresholdBtn, durationBtn, viewLogBtn);
-      const row3 = new ActionRowBuilder().addComponents(derankBtn);
-
-      await interaction.reply({ embeds: [embed], components: [row1, row2, row3], ephemeral: true });
-
-      // Set up button handlers
-      client.buttonHandlers.set('raid_enable', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        try {
-          const count = await enableRaidMode(guild, btn.user.tag, client);
-          await logRaid(guild, 'raidStart', {
-            triggeredBy: btn.user.tag,
-            reason: 'Manually enabled',
-            count,
+        // ===== ANTI-BOT =====
+        if (cid === 'raid_antibot') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildAntiBotEmbed(guildId, client)],
+            components: buildAntiBotButtons(guildId),
           });
-          await btn.update({ content: `✅ Raid Mode activé! ${count} salons verrouillés.`, embeds: [], components: [] });
-        } catch (error) {
-          await btn.update({ content: `❌ Erreur: ${error.message}`, embeds: [], components: [] });
         }
-        client.buttonHandlers.delete('raid_enable');
-        client.buttonHandlers.delete('raid_disable');
-        client.buttonHandlers.delete('raid_threshold');
-        client.buttonHandlers.delete('raid_duration');
-        client.buttonHandlers.delete('raid_viewlog');
-        client.buttonHandlers.delete('raid_derank');
-      });
-
-      client.buttonHandlers.set('raid_disable', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        try {
-          await disableRaidMode(guild, client);
-          await logRaid(guild, 'raidEnd', {
-            triggeredBy: btn.user.tag,
-            reason: 'Manually disabled',
+        else if (cid === 'raid_antibot_toggle') {
+          await btn.deferUpdate();
+          const cfg = getRaidConfig(guildId);
+          updateRaidConfig(guildId, { antiBotEnabled: !cfg.antiBotEnabled });
+          await addRaidActionLog(guildId, { type: 'config', triggeredBy: btn.user.tag, reason: `Anti-Bot ${!cfg.antiBotEnabled ? 'enabled' : 'disabled'}` });
+          await btn.editReply({
+            embeds: [await buildAntiBotEmbed(guildId, client)],
+            components: buildAntiBotButtons(guildId),
           });
-          await btn.update({ content: '✅ Raid Mode désactivé!', embeds: [], components: [] });
-        } catch (error) {
-          await btn.update({ content: `❌ Erreur: ${error.message}`, embeds: [], components: [] });
         }
-        client.buttonHandlers.delete('raid_enable');
-        client.buttonHandlers.delete('raid_disable');
-        client.buttonHandlers.delete('raid_threshold');
-        client.buttonHandlers.delete('raid_duration');
-        client.buttonHandlers.delete('raid_viewlog');
-        client.buttonHandlers.delete('raid_derank');
-      });
-
-      client.buttonHandlers.set('raid_threshold', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
+        else if (cid.startsWith('raid_antibot_wl_remove_')) {
+          await btn.deferUpdate();
+          const userIdToRemove = cid.replace('raid_antibot_wl_remove_', '');
+          const cfg = getRaidConfig(guildId);
+          const newWhitelist = cfg.antiBotWhitelist.filter(id => id !== userIdToRemove);
+          updateRaidConfig(guildId, { antiBotWhitelist: newWhitelist });
+          await btn.editReply({
+            embeds: [await buildAntiBotEmbed(guildId, client)],
+            components: buildAntiBotButtons(guildId),
+          });
         }
-        await btn.update({ content: null, embeds: [createThresholdSelectEmbed()], components: [createThresholdRow()] });
-        client.buttonHandlers.delete('raid_enable');
-        client.buttonHandlers.delete('raid_disable');
-        client.buttonHandlers.delete('raid_threshold');
-        client.buttonHandlers.delete('raid_duration');
-        client.buttonHandlers.delete('raid_viewlog');
-        client.buttonHandlers.delete('raid_derank');
-      });
-
-      client.buttonHandlers.set('raid_duration', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        await btn.update({ content: null, embeds: [createDurationSelectEmbed()], components: [createDurationRow()] });
-        client.buttonHandlers.delete('raid_enable');
-        client.buttonHandlers.delete('raid_disable');
-        client.buttonHandlers.delete('raid_threshold');
-        client.buttonHandlers.delete('raid_duration');
-        client.buttonHandlers.delete('raid_viewlog');
-        client.buttonHandlers.delete('raid_derank');
-      });
-
-      client.buttonHandlers.set('raid_viewlog', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        try {
-          const logs = getRaidActionLog(guildId, 10);
-          const logEmbed = new EmbedBuilder()
-            .setTitle('📋 Historique des Actions Anti-Raid')
-            .setColor(0x9b59b6)
-            .setTimestamp()
-            .setFooter({ text: 'Niotic Moderation' });
-
-          if (logs.length === 0) {
-            logEmbed.setDescription('Aucun log de raid disponible.');
-          } else {
-            const logText = logs.map(log => {
-              const time = new Date(log.timestamp * 1000).toLocaleString('fr-FR');
-              return `**${log.type}** - ${log.triggeredBy} - ${time}`;
-            }).join('\n');
-            logEmbed.setDescription(logText.substring(0, 2048));
+        else if (cid === 'raid_antibot_wl_add') {
+          await btn.deferUpdate();
+          const guild = client.guilds.cache.get(guildId);
+          if (!guild) {
+            await btn.editReply({ content: '❌ Guild not found', embeds: [], components: [] });
+            return;
           }
-
-          await btn.update({ content: null, embeds: [logEmbed], components: [] });
-        } catch (error) {
-          await btn.update({ content: `❌ Erreur: ${error.message}`, embeds: [], components: [] });
-        }
-        client.buttonHandlers.delete('raid_enable');
-        client.buttonHandlers.delete('raid_disable');
-        client.buttonHandlers.delete('raid_threshold');
-        client.buttonHandlers.delete('raid_duration');
-        client.buttonHandlers.delete('raid_viewlog');
-        client.buttonHandlers.delete('raid_derank');
-      });
-
-      client.buttonHandlers.set('raid_derank', async (btn) => {
-        if (btn.user.id !== interaction.user.id) {
-          return btn.reply({ content: '❌ Vous ne pouvez pas utiliser ce bouton.', ephemeral: true });
-        }
-        try {
-          await btn.update({ content: '⚠️ Derank en cours...', embeds: [], components: [] });
-          
           const members = await guild.members.fetch();
-          let deranked = 0;
+          const options = members.filter(m => !m.user.bot).slice(0, 25).map(m => ({
+            label: m.user.tag.substring(0, 100),
+            value: `antibot_wl_add_${m.user.id}`,
+          }));
           
-          for (const member of members.values()) {
-            if (member.roles.highest.position >= guild.me.roles.highest.position) continue;
-            if (member.user.bot) continue;
-            if (member.permissions.has(PermissionFlagsBits.Administrator)) continue;
-            
-            try {
-              await member.roles.set([], 'Emergency derank triggered');
-              deranked++;
-            } catch {}
+          if (options.length === 0) {
+            await btn.editReply({
+              embeds: [buildAntiBotWhitelistAddEmbed()],
+              components: [new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('raid_antibot_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary)
+              )],
+            });
+            return;
           }
           
-          await logRaid(guild, 'raidDerank', {
-            triggeredBy: btn.user.tag,
-            reason: 'Emergency derank',
-            count: deranked,
+          await btn.editReply({
+            embeds: [buildAntiBotWhitelistAddEmbed()],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId(`select_antibot_wl_add_${guildId}`)
+                  .setPlaceholder('Sélectionner un utilisateur...')
+                  .addOptions(options)
+              ),
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('raid_antibot_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary)
+              ),
+            ],
           });
-          
-          await btn.editReply({ content: `✅ Emergency derank terminé! ${deranked} membres dérankés.`, embeds: [], components: [] });
-        } catch (error) {
-          await btn.editReply({ content: `❌ Erreur: ${error.message}`, embeds: [], components: [] });
         }
-        client.buttonHandlers.delete('raid_enable');
-        client.buttonHandlers.delete('raid_disable');
-        client.buttonHandlers.delete('raid_threshold');
-        client.buttonHandlers.delete('raid_duration');
-        client.buttonHandlers.delete('raid_viewlog');
-        client.buttonHandlers.delete('raid_derank');
+        else if (cid === 'raid_antibot_back') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildMainEmbed(guildId, client)],
+            components: buildMainButtons(),
+          });
+        }
+
+        // ===== DETECTION =====
+        else if (cid === 'raid_detect') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildDetectionEmbed(guildId, client)],
+            components: buildDetectionButtons(guildId),
+          });
+        }
+        else if (cid.startsWith('raid_detect_edit_')) {
+          await btn.deferUpdate();
+          const rule = cid.replace('raid_detect_edit_', '');
+          await btn.editReply({
+            embeds: [buildEditRuleEmbed(rule, guildId)],
+            components: buildEditRuleButtons(rule, guildId),
+          });
+        }
+        else if (cid.startsWith('raid_detect_set_')) {
+          await btn.deferUpdate();
+          const parts = cid.split('_');
+          const rule = parts[3];
+          const value = parseInt(parts[4]);
+          await applyRuleValue(guildId, rule, value);
+          await btn.editReply({
+            embeds: [await buildDetectionEmbed(guildId, client)],
+            components: buildDetectionButtons(guildId),
+          });
+        }
+        else if (cid === 'raid_detect_back') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildMainEmbed(guildId, client)],
+            components: buildMainButtons(),
+          });
+        }
+
+        // ===== WHITELIST =====
+        else if (cid === 'raid_wl') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildWhitelistEmbed(guildId, client)],
+            components: buildWhitelistButtons(guildId),
+          });
+        }
+        else if (cid.startsWith('raid_wl_remove_')) {
+          await btn.deferUpdate();
+          const userIdToRemove = cid.replace('raid_wl_remove_', '');
+          const cfg = getRaidConfig(guildId);
+          const newBypass = cfg.whitelistBypass.filter(id => id !== userIdToRemove);
+          updateRaidConfig(guildId, { whitelistBypass: newBypass });
+          await addRaidActionLog(guildId, { type: 'config', triggeredBy: btn.user.tag, reason: 'Removed from whitelist bypass' });
+          await btn.editReply({
+            embeds: [await buildWhitelistEmbed(guildId, client)],
+            components: buildWhitelistButtons(guildId),
+          });
+        }
+        else if (cid === 'raid_wl_add') {
+          await btn.deferUpdate();
+          const guild = client.guilds.cache.get(guildId);
+          if (!guild) {
+            await btn.editReply({ content: '❌ Guild not found', embeds: [], components: [] });
+            return;
+          }
+          const members = await guild.members.fetch();
+          const options = members.filter(m => !m.user.bot).slice(0, 25).map(m => ({
+            label: m.user.tag.substring(0, 100),
+            value: `wl_add_${m.user.id}`,
+          }));
+          
+          if (options.length === 0) {
+            await btn.editReply({
+              embeds: [buildWhitelistAddUserEmbed()],
+              components: [new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('raid_wl_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary)
+              )],
+            });
+            return;
+          }
+          
+          await btn.editReply({
+            embeds: [buildWhitelistAddUserEmbed()],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId(`select_wl_add_${guildId}`)
+                  .setPlaceholder('Sélectionner un utilisateur...')
+                  .addOptions(options)
+              ),
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('raid_wl_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary)
+              ),
+            ],
+          });
+        }
+        else if (cid === 'raid_wl_back') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildMainEmbed(guildId, client)],
+            components: buildMainButtons(),
+          });
+        }
+
+        // ===== PARAMETERS =====
+        else if (cid === 'raid_cfg') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildParamsEmbed(guildId, client)],
+            components: buildParamsButtons(guildId),
+          });
+        }
+        else if (cid === 'raid_cfg_derank_toggle') {
+          await btn.deferUpdate();
+          const cfg = getRaidConfig(guildId);
+          updateRaidConfig(guildId, { autoDerankEnabled: !cfg.autoDerankEnabled });
+          await btn.editReply({
+            embeds: [await buildParamsEmbed(guildId, client)],
+            components: buildParamsButtons(guildId),
+          });
+        }
+        else if (cid === 'raid_cfg_dm_toggle') {
+          await btn.deferUpdate();
+          const cfg = getRaidConfig(guildId);
+          updateRaidConfig(guildId, { dmOnDerankEnabled: !cfg.dmOnDerankEnabled });
+          await btn.editReply({
+            embeds: [await buildParamsEmbed(guildId, client)],
+            components: buildParamsButtons(guildId),
+          });
+        }
+        else if (cid.startsWith('raid_cfg_delay_')) {
+          await btn.deferUpdate();
+          const delay = parseInt(cid.replace('raid_cfg_delay_', ''));
+          updateRaidConfig(guildId, { derankDelay: delay });
+          await btn.editReply({
+            embeds: [await buildParamsEmbed(guildId, client)],
+            components: buildParamsButtons(guildId),
+          });
+        }
+        else if (cid === 'raid_cfg_logs') {
+          await btn.deferUpdate();
+          const logs = getRaidActionLog(guildId, 15);
+          const lines = logs.length === 0
+            ? 'Aucun log disponible.'
+            : logs.map((l) => {
+                const t = new Date(l.timestamp * 1000).toLocaleString('fr-FR');
+                return `**${l.type}** | ${l.triggered_by} | ${t}`;
+              }).join('\n');
+
+          await btn.editReply({
+            content: null,
+            embeds: [new EmbedBuilder()
+              .setTitle('📋 Historique Anti-Raid')
+              .setColor(COLORS.shield)
+              .setDescription(lines.substring(0, 2048))
+              .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+              .setTimestamp()],
+            components: [new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId('raid_cfg_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary)
+            )],
+          });
+        }
+        else if (cid === 'raid_cfg_back') {
+          await btn.deferUpdate();
+          await btn.editReply({
+            embeds: [await buildMainEmbed(guildId, client)],
+            components: buildMainButtons(),
+          });
+        }
+
+        // ===== SELECT MENU HANDLERS =====
+        else if (cid.startsWith('select_wl_add_')) {
+          await btn.deferUpdate();
+          const targetId = cid.replace(`select_wl_add_${guildId}`, '').replace('wl_add_', '');
+          const cfg = getRaidConfig(guildId);
+          if (!cfg.whitelistBypass.includes(targetId)) {
+            const newBypass = [...cfg.whitelistBypass, targetId];
+            updateRaidConfig(guildId, { whitelistBypass: newBypass });
+            await addRaidActionLog(guildId, { type: 'config', triggeredBy: btn.user.tag, reason: `Added ${targetId} to whitelist bypass` });
+          }
+          await btn.editReply({
+            embeds: [await buildWhitelistEmbed(guildId, client)],
+            components: buildWhitelistButtons(guildId),
+          });
+        }
+        else if (cid.startsWith('select_antibot_wl_add_')) {
+          await btn.deferUpdate();
+          const targetId = cid.replace(`select_antibot_wl_add_${guildId}`, '').replace('antibot_wl_add_', '');
+          const cfg = getRaidConfig(guildId);
+          if (!cfg.antiBotWhitelist.includes(targetId)) {
+            const newWhitelist = [...cfg.antiBotWhitelist, targetId];
+            updateRaidConfig(guildId, { antiBotWhitelist: newWhitelist });
+            await addRaidActionLog(guildId, { type: 'config', triggeredBy: btn.user.tag, reason: `Added ${targetId} to anti-bot whitelist` });
+          }
+          await btn.editReply({
+            embeds: [await buildAntiBotEmbed(guildId, client)],
+            components: buildAntiBotButtons(guildId),
+          });
+        }
       });
 
-      // Threshold selection handlers
-      client.buttonHandlers.set('threshold_5', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidThreshold: 5 });
-        client.guildConfigs.set(guildId, { ...config, raidThreshold: 5 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Threshold set to 5' });
-        await btn.update({ content: '✅ Seuil défini à 5 joins/10s', embeds: [], components: [] });
-      });
-
-      client.buttonHandlers.set('threshold_10', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidThreshold: 10 });
-        client.guildConfigs.set(guildId, { ...config, raidThreshold: 10 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Threshold set to 10' });
-        await btn.update({ content: '✅ Seuil défini à 10 joins/10s', embeds: [], components: [] });
-      });
-
-      client.buttonHandlers.set('threshold_20', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidThreshold: 20 });
-        client.guildConfigs.set(guildId, { ...config, raidThreshold: 20 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Threshold set to 20' });
-        await btn.update({ content: '✅ Seuil défini à 20 joins/10s', embeds: [], components: [] });
-      });
-
-      client.buttonHandlers.set('threshold_50', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidThreshold: 50 });
-        client.guildConfigs.set(guildId, { ...config, raidThreshold: 50 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Threshold set to 50' });
-        await btn.update({ content: '✅ Seuil défini à 50 joins/10s', embeds: [], components: [] });
-      });
-
-      // Duration selection handlers
-      client.buttonHandlers.set('duration_5', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidLockDuration: 5 });
-        client.guildConfigs.set(guildId, { ...config, raidLockDuration: 5 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Lock duration set to 5 minutes' });
-        await btn.update({ content: '✅ Durée de lock définie à 5 minutes', embeds: [], components: [] });
-      });
-
-      client.buttonHandlers.set('duration_15', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidLockDuration: 15 });
-        client.guildConfigs.set(guildId, { ...config, raidLockDuration: 15 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Lock duration set to 15 minutes' });
-        await btn.update({ content: '✅ Durée de lock définie à 15 minutes', embeds: [], components: [] });
-      });
-
-      client.buttonHandlers.set('duration_30', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidLockDuration: 30 });
-        client.guildConfigs.set(guildId, { ...config, raidLockDuration: 30 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Lock duration set to 30 minutes' });
-        await btn.update({ content: '✅ Durée de lock définie à 30 minutes', embeds: [], components: [] });
-      });
-
-      client.buttonHandlers.set('duration_60', async (btn) => {
-        if (btn.user.id !== interaction.user.id) return;
-        await updateGuildConfig(guildId, { raidLockDuration: 60 });
-        client.guildConfigs.set(guildId, { ...config, raidLockDuration: 60 });
-        await logRaid(guild, 'raidConfig', { triggeredBy: btn.user.tag, reason: 'Lock duration set to 60 minutes' });
-        await btn.update({ content: '✅ Durée de lock définie à 60 minutes', embeds: [], components: [] });
+      collector.on('end', () => {
+        reply.edit({ components: [] }).catch(() => {});
       });
 
     } catch (error) {
@@ -309,44 +337,316 @@ export default {
   },
 };
 
-function createThresholdSelectEmbed() {
+// ============ BUILD HELPERS ============
+
+async function buildMainEmbed(guildId, client) {
+  const cfg = getRaidConfig(guildId);
+  const isActive = cfg.antiBotEnabled || 
+    cfg.channelCreateThreshold < 10 || 
+    cfg.spamThreshold < 20;
+
   return new EmbedBuilder()
-    .setTitle('📊 Sélection du Seuil Anti-Raid')
-    .setColor(0x5865F2)
-    .setDescription('Choisissez le nombre de joins en 10 secondes qui déclenchera le mode raid.')
+    .setTitle('🛡️ Configuration Anti-Raid')
+    .setColor(COLORS.shield)
+    .setThumbnail(client.user.displayAvatarURL())
     .addFields(
-      { name: '🔢 Seuil', value: '5 - Très sensible\n10 - Sensible (recommandé)\n20 - Modéré\n50 - Tolérant', inline: false }
+      { name: 'Status', value: isActive ? '🟢 ACTIVE' : '⚪ INACTIVE', inline: true },
+      { name: 'Anti-Bot', value: cfg.antiBotEnabled ? '🟢 ON' : '⚪ OFF', inline: true },
+      { name: 'Auto-Derank', value: cfg.autoDerankEnabled ? '🟢 ON' : '⚪ OFF', inline: true },
+      { name: 'Seuil Channel', value: `${cfg.channelCreateThreshold}/${cfg.channelCreateWindowMinutes}min`, inline: true },
+      { name: 'Seuil Spam', value: `${cfg.spamThreshold}/${cfg.spamWindowSeconds}s`, inline: true },
+      { name: 'Mass Ban', value: `${cfg.massBanThreshold}/${cfg.massBanWindowMinutes}min`, inline: true },
     )
-    .setFooter({ text: 'Niotic Moderation' })
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
     .setTimestamp();
 }
 
-function createThresholdRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('threshold_5').setLabel('5').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('threshold_10').setLabel('10').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('threshold_20').setLabel('20').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('threshold_50').setLabel('50').setStyle(ButtonStyle.Secondary),
+function buildMainButtons() {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('raid_antibot').setLabel('🤖 Anti-Bot').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('raid_detect').setLabel('🚨 Détection').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('raid_wl').setLabel('⭐ Whitelist').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('raid_cfg').setLabel('⚙️ Paramètres').setStyle(ButtonStyle.Secondary),
   );
+  return [row];
 }
 
-function createDurationSelectEmbed() {
+// ============ ANTI-BOT ============
+
+async function buildAntiBotEmbed(guildId, client) {
+  const cfg = getRaidConfig(guildId);
+  const whitelist = cfg.antiBotWhitelist || [];
+  let wlUsers = 'Aucun utilisateur';
+  if (whitelist.length > 0) {
+    try {
+      const guild = client.guilds.cache.get(guildId);
+      if (guild) {
+        const members = await guild.members.fetch();
+        wlUsers = whitelist.map(id => {
+          const member = members.get(id);
+          return member ? `👤 ${member.user.tag}` : `❓ ${id}`;
+        }).join('\n');
+      }
+    } catch {}
+  }
+
   return new EmbedBuilder()
-    .setTitle('⏱️ Sélection de la Durée de Lock')
-    .setColor(0x5865F2)
-    .setDescription('Choisissez la durée de verrouillage des salons lors du mode raid.')
+    .setTitle('🤖 Configuration Anti-Bot')
+    .setColor(COLORS.info)
+    .setThumbnail(client.user.displayAvatarURL())
     .addFields(
-      { name: '⏱️ Durée', value: '5 min - Rapide\n15 min - Standard (recommandé)\n30 min - Prolongé\n60 min - Maximum', inline: false }
+      { name: 'Statut', value: cfg.antiBotEnabled ? '🟢 ACTIVÉ' : '⚪ DÉSACTIVÉ', inline: true },
+      { name: 'Utilisateurs autorisés', value: whitelist.length > 0 ? String(whitelist.length) : 'Aucun', inline: true },
+      { name: 'Whitelist Anti-Bot', value: wlUsers, inline: false },
     )
-    .setFooter({ text: 'Niotic Moderation' })
+    .setDescription('Les utilisateurs whitelistés peuvent ajouter des bots sans être dérankés.')
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
     .setTimestamp();
 }
 
-function createDurationRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('duration_5').setLabel('5m').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('duration_15').setLabel('15m').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('duration_30').setLabel('30m').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('duration_60').setLabel('1h').setStyle(ButtonStyle.Secondary),
-  );
+function buildAntiBotButtons(guildId) {
+  const cfg = getRaidConfig(guildId);
+  const wl = cfg.antiBotWhitelist || [];
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_antibot_toggle')
+        .setLabel(cfg.antiBotEnabled ? '🔴 Désactiver' : '🟢 Activer')
+        .setStyle(cfg.antiBotEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('raid_antibot_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  if (wl.length > 0) {
+    const removeButtons = wl.slice(0, 5).map(id => 
+      new ButtonBuilder()
+        .setCustomId(`raid_antibot_wl_remove_${id}`)
+        .setLabel(`❌ ${id}`)
+        .setStyle(ButtonStyle.Danger)
+    );
+    if (removeButtons.length > 0) {
+      rows.push(new ActionRowBuilder().addComponents(...removeButtons));
+    }
+  }
+
+  rows.push(new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('raid_antibot_wl_add').setLabel('➕ Ajouter à la whitelist').setStyle(ButtonStyle.Primary),
+  ));
+
+  return rows;
 }
+
+function buildAntiBotWhitelistAddEmbed() {
+  return new EmbedBuilder()
+    .setTitle('➕ Ajouter à la Whitelist Anti-Bot')
+    .setColor(COLORS.info)
+    .setDescription('Sélectionnez un membre pour l\'ajouter à la whitelist anti-bot.\n\nLes utilisateurs whitelistés peuvent ajouter des bots sans déclencher la protection.')
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+    .setTimestamp();
+}
+
+function buildWhitelistAddSelectMenu(guildId) {
+  return [new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`select_antibot_wl_add_${guildId}`)
+      .setPlaceholder('Sélectionner un utilisateur...')
+      .addOptions([{ label: 'Chargement...', value: 'loading' }]),
+  )];
+}
+
+// ============ DETECTION ============
+
+async function buildDetectionEmbed(guildId, client) {
+  const cfg = getRaidConfig(guildId);
+  return new EmbedBuilder()
+    .setTitle('🚨 Règles de Détection')
+    .setColor(COLORS.error)
+    .setThumbnail(client.user.displayAvatarURL())
+    .addFields(
+      { name: '1️⃣ Channel création', value: `${cfg.channelCreateThreshold} en ${cfg.channelCreateWindowMinutes} min`, inline: false },
+      { name: '2️⃣ Channel suppression', value: `${cfg.channelDeleteThreshold} en ${cfg.channelDeleteWindowMinutes} min`, inline: false },
+      { name: '3️⃣ Mass bans', value: `${cfg.massBanThreshold} en ${cfg.massBanWindowMinutes} min`, inline: false },
+      { name: '4️⃣ Mass kicks', value: `${cfg.massKickThreshold} en ${cfg.massKickWindowMinutes} min`, inline: false },
+      { name: '5️⃣ Spam messages', value: `${cfg.spamThreshold} en ${cfg.spamWindowSeconds} sec`, inline: false },
+    )
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+    .setTimestamp();
+}
+
+function buildDetectionButtons(guildId) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_detect_edit_channel_create').setLabel('✏️ Channel création').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('raid_detect_edit_channel_delete').setLabel('✏️ Channel suppression').setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_detect_edit_mass_ban').setLabel('✏️ Mass bans').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('raid_detect_edit_mass_kick').setLabel('✏️ Mass kicks').setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_detect_edit_spam').setLabel('✏️ Spam').setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_detect_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+}
+
+function buildEditRuleEmbed(rule, guildId) {
+  const cfg = getRaidConfig(guildId);
+  const ruleNames = {
+    channel_create: 'Channel création',
+    channel_delete: 'Channel suppression',
+    mass_ban: 'Mass bans',
+    mass_kick: 'Mass kicks',
+    spam: 'Spam messages',
+  };
+  const ruleColors = {
+    channel_create: { threshold: cfg.channelCreateThreshold, window: cfg.channelCreateWindowMinutes, unit: 'min' },
+    channel_delete: { threshold: cfg.channelDeleteThreshold, window: cfg.channelDeleteWindowMinutes, unit: 'min' },
+    mass_ban: { threshold: cfg.massBanThreshold, window: cfg.massBanWindowMinutes, unit: 'min' },
+    mass_kick: { threshold: cfg.massKickThreshold, window: cfg.massKickWindowMinutes, unit: 'min' },
+    spam: { threshold: cfg.spamThreshold, window: cfg.spamWindowSeconds, unit: 'sec' },
+  };
+  const current = ruleColors[rule];
+
+  return new EmbedBuilder()
+    .setTitle(`✏️ Modifier: ${ruleNames[rule] || rule}`)
+    .setColor(COLORS.warning)
+    .setDescription(`**Valeur actuelle:** ${current.threshold} en ${current.window} ${current.unit}\n\n**Entrez la nouvelle valeur:**`)
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+    .setTimestamp();
+}
+
+function buildEditRuleButtons(rule, guildId) {
+  const quickValues = rule === 'spam' ? [5, 10, 20, 50] : [5, 10, 20, 50];
+  return [
+    new ActionRowBuilder().addComponents(
+      ...quickValues.map(v => 
+        new ButtonBuilder()
+          .setCustomId(`raid_detect_set_${rule}_${v}`)
+          .setLabel(String(v))
+          .setStyle(ButtonStyle.Primary)
+      ),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_detect_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+}
+
+async function applyRuleValue(guildId, rule, value) {
+  const fieldMap = {
+    channel_create: { threshold: 'channelCreateThreshold', window: 'channelCreateWindowMinutes', guildThreshold: 'raidChannelThreshold', guildWindow: 'raidChannelWindow' },
+    channel_delete: { threshold: 'channelDeleteThreshold', window: 'channelDeleteWindowMinutes', guildThreshold: 'raidDeleteThreshold', guildWindow: 'raidDeleteWindow' },
+    mass_ban: { threshold: 'massBanThreshold', window: 'massBanWindowMinutes', guildThreshold: 'raidBanThreshold', guildWindow: 'raidBanWindow' },
+    mass_kick: { threshold: 'massKickThreshold', window: 'massKickWindowMinutes', guildThreshold: 'raidKickThreshold', guildWindow: 'raidKickWindow' },
+    spam: { threshold: 'spamThreshold', window: 'spamWindowSeconds', guildThreshold: 'raidSpamThreshold', guildWindow: 'raidSpamWindow' },
+  };
+
+  if (fieldMap[rule]) {
+    const mapping = fieldMap[rule];
+    // Update raid_config
+    updateRaidConfig(guildId, { [mapping.threshold]: value });
+    // Also update guild_config for new fields
+    updateGuildConfig(guildId, { [mapping.guildThreshold]: value });
+    await addRaidActionLog(guildId, { type: 'config', triggeredBy: 'system', reason: `Updated ${rule} threshold to ${value}` });
+  }
+}
+
+// ============ WHITELIST ============
+
+async function buildWhitelistEmbed(guildId, client) {
+  const cfg = getRaidConfig(guildId);
+  const bypass = cfg.whitelistBypass || [];
+  let bypassUsers = 'Aucun utilisateur';
+  if (bypass.length > 0) {
+    try {
+      const guild = client.guilds.cache.get(guildId);
+      if (guild) {
+        const members = await guild.members.fetch();
+        bypassUsers = bypass.map(id => {
+          const member = members.get(id);
+          return member ? `👤 ${member.user.tag}` : `❓ ${id}`;
+        }).join('\n');
+      }
+    } catch {}
+  }
+
+  return new EmbedBuilder()
+    .setTitle('⭐ Whitelist Bypass')
+    .setColor(COLORS.success)
+    .setThumbnail(client.user.displayAvatarURL())
+    .addFields(
+      { name: 'Utilisateurs whitelisted', value: bypass.length > 0 ? String(bypass.length) : 'Aucun', inline: true },
+      { name: 'Liste', value: bypassUsers, inline: false },
+    )
+    .setDescription('Ces utilisateurs **bypassent TOUTE** la détection raid.')
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+    .setTimestamp();
+}
+
+function buildWhitelistButtons(guildId) {
+  const cfg = getRaidConfig(guildId);
+  const bypass = cfg.whitelistBypass || [];
+  const rows = [];
+
+  if (bypass.length > 0) {
+    const removeButtons = bypass.slice(0, 5).map(id => 
+      new ButtonBuilder()
+        .setCustomId(`raid_wl_remove_${id}`)
+        .setLabel(`❌ ${id.substring(0, 8)}`)
+        .setStyle(ButtonStyle.Danger)
+    );
+    rows.push(new ActionRowBuilder().addComponents(...removeButtons));
+  }
+
+  rows.push(new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('raid_wl_add').setLabel('➕ Ajouter utilisateur').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('raid_wl_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary),
+  ));
+
+  return rows;
+}
+
+function buildWhitelistAddUserEmbed() {
+  return new EmbedBuilder()
+    .setTitle('➕ Ajouter à la Whitelist')
+    .setColor(COLORS.success)
+    .setDescription('Sélectionnez un membre pour l\'ajouter à la whitelist.\n\n⚠️ Ces utilisateurs permettront **d\'ajouter des bots** et **bypassent la détection raid**.')
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+    .setTimestamp();
+}
+
+// ============ PARAMETERS ============
+
+async function buildParamsEmbed(guildId, client) {
+  const cfg = getRaidConfig(guildId);
+  return new EmbedBuilder()
+    .setTitle('⚙️ Paramètres Anti-Raid')
+    .setColor(COLORS.info)
+    .setThumbnail(client.user.displayAvatarURL())
+    .addFields(
+      { name: 'Auto-Derank', value: cfg.autoDerankEnabled ? '🟢 ACTIVÉ' : '⚪ DÉSACTIVÉ', inline: true },
+      { name: 'DM on Derank', value: cfg.dmOnDerankEnabled ? '🟢 ON' : '⚪ OFF', inline: true },
+      { name: 'Log Channel', value: cfg.logChannelId || 'Non configuré', inline: true },
+    )
+    .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+    .setTimestamp();
+}
+
+function buildParamsButtons(guildId) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_cfg_derank_toggle').setLabel('🔄 Auto-Derank').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('raid_cfg_dm_toggle').setLabel('🔄 DM on Derank').setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_cfg_logs').setLabel('📋 Voir Logs').setStyle(ButtonStyle.Secondary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('raid_cfg_back').setLabel('← Retour').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+}
+
+// Select menu for whitelist add

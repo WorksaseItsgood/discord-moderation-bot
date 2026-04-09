@@ -3,12 +3,14 @@
  * Main entry point
  */
 
+import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials, Collection } from 'discord.js';
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import db, { getGuildConfig } from './database/db.js';
 import { setupRaidHandler } from './handlers/raidHandler.js';
+import { setupRaidDetector } from './handlers/raidDetector.js';
 import { setLogClient } from './utils/logManager.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -99,6 +101,9 @@ client.once('ready', async (c) => {
 
   // Initialize raid handler
   setupRaidHandler(c);
+
+  // Initialize raid detector
+  setupRaidDetector(c);
 
   // Pre-load guild configs
   for (const guild of c.guilds.cache.values()) {

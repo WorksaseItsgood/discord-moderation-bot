@@ -368,7 +368,7 @@ export async function logShield(guild, action, data) {
     if (!channel) return;
 
     const emojiMap = {
-      enable: '✅', disable: '❌', trigger: '🚨', 
+      enable: '✅', disable: '❌', trigger: '🚨',
       antiSpam: '🛡️', antiRaid: '🚨', autoMod: '⚡',
     };
     const emoji = emojiMap[action] || '🛡️';
@@ -393,6 +393,131 @@ export async function logShield(guild, action, data) {
   }
 }
 
+// ============ ANTIBOT LOGS ============
+export async function logAntibot(guild, action, data) {
+  try {
+    const channel = await getLogChannel(guild, 'raidLogChannel');
+    if (!channel) return;
+
+    const emojiMap = {
+      botKick: '🤖', botDerank: '📉', botWhitelistAdd: '➕', botWhitelistRemove: '➖',
+      botDetected: '🚨', botAllowed: '✅', antibotToggle: '⚙️',
+    };
+    const emoji = emojiMap[action] || '🤖';
+    const color = action.includes('Kick') || action.includes('Derank') ? C.error : C.shield;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji} Anti-Bot Event - ${action.charAt(0).toUpperCase() + action.slice(1)}`)
+      .setColor(color)
+      .setTimestamp()
+      .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` });
+
+    if (data.bot) {
+      embed.setThumbnail(data.bot.displayAvatarURL?.({ size: 256 }));
+      embed.addFields({ name: '🤖 Bot', value: `${data.bot.tag}\n\`${data.bot.id}\``, inline: true });
+    }
+
+    if (data.inviter) {
+      embed.addFields({ name: '👤 Inviteur', value: `${data.inviter.tag}\n\`${data.inviter.id}\``, inline: true });
+    }
+
+    if (data.reason) {
+      embed.addFields({ name: '📝 Raison', value: data.reason, inline: false });
+    }
+
+    if (data.whitelist) {
+      embed.addFields({ name: '📋 Whitelist', value: data.whitelist, inline: false });
+    }
+
+    await channel.send({ embeds: [embed] });
+  } catch (error) {
+    console.error('[LogManager] logAntibot error:', error);
+  }
+}
+
+// ============ RAID ACTION LOGS ============
+export async function logRaidAction(guild, userId, action, details) {
+  try {
+    const channel = await getLogChannel(guild, 'raidLogChannel');
+    if (!channel) return;
+
+    const emojiMap = {
+      derank: '📉', kick: '🦶', ban: '🔨', mute: '🔇', quarantine: '🔒',
+      channelCreate: '📁', channelDelete: '🗑️', spam: '💬', botAdd: '🤖',
+    };
+    const emoji = emojiMap[action] || '🛡️';
+    const color = action === 'derank' ? C.error : C.raid;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji} Raid Action - ${action.charAt(0).toUpperCase() + action.slice(1)}`)
+      .setColor(color)
+      .setTimestamp()
+      .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` });
+
+    if (details.target) {
+      embed.setThumbnail(details.target.displayAvatarURL?.({ size: 256 }));
+      embed.addFields({ name: '👤 Utilisateur', value: `${details.target.tag || details.target}\n\`${details.target.id || userId}\``, inline: true });
+    } else if (userId) {
+      embed.addFields({ name: '👤 Utilisateur ID', value: `\`${userId}\``, inline: true });
+    }
+
+    if (details.moderator) {
+      embed.addFields({ name: '🛡️ Modérateur', value: details.moderator, inline: true });
+    }
+
+    if (details.reason) {
+      embed.addFields({ name: '📝 Raison', value: details.reason, inline: false });
+    }
+
+    if (details.count) {
+      embed.addFields({ name: '📊 Count', value: String(details.count), inline: true });
+    }
+
+    if (details.threshold) {
+      embed.addFields({ name: '⚠️ Seuil', value: String(details.threshold), inline: true });
+    }
+
+    if (details.rolesRemoved) {
+      embed.addFields({ name: '🎭 Rôles supprimés', value: details.rolesRemoved, inline: false });
+    }
+
+    if (details.extra) {
+      embed.addFields({ name: '📌 Extra', value: String(details.extra), inline: true });
+    }
+
+    await channel.send({ embeds: [embed] });
+  } catch (error) {
+    console.error('[LogManager] logRaidAction error:', error);
+  }
+}
+
+// ============ DERANK LOGS ============
+export async function logDerank(guild, data) {
+  try {
+    const channel = await getLogChannel(guild, 'raidLogChannel');
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle('📉 Derank - Rôles supprimés')
+      .setColor(C.error)
+      .setThumbnail(data.target?.displayAvatarURL?.({ size: 256 }))
+      .addFields(
+        { name: '👤 Utilisateur', value: `${data.target?.tag || 'Unknown'}\n\`${data.target?.id || 'Unknown'}\``, inline: true },
+        { name: '📝 Raison', value: data.reason || 'Non spécifiée', inline: false }
+      )
+      .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
+      .setTimestamp();
+
+    if (data.roles) {
+      embed.addFields({ name: '🎭 Rôles supprimés', value: data.roles, inline: false });
+    }
+
+    await channel.send({ embeds: [embed] });
+  } catch (error) {
+    console.error('[LogManager] logDerank error:', error);
+  }
+}
+
 export default {
   setLogClient,
   logModeration,
@@ -402,5 +527,8 @@ export default {
   logVoice,
   logRole,
   logShield,
+  logDerank,
+  logAntibot,
+  logRaidAction,
   colors: C,
 };
