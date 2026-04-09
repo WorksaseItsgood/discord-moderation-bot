@@ -2,17 +2,15 @@ const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRow
 const db = require('../../database');
 
 module.exports = {
-  name: 'warn',
-  description: '⚠️ Avertir un membre',
+  name: 'clearwarns',
+  description: '🧹 Effacer tous les avertissements d\'un membre',
   data: new SlashCommandBuilder()
-    .setName('warn')
-    .setDescription('Avertir un membre du serveur')
-    .addUserOption(opt => opt.setName('user').setDescription('Membre à avertir').setRequired(true))
-    .addStringOption(opt => opt.setName('reason').setDescription('Raison de l\'avertissement').setRequired(false)),
+    .setName('clearwarns')
+    .setDescription('Effacer tous les avertissements d\'un membre')
+    .addUserOption(opt => opt.setName('user').setDescription('Membre à déwarn').setRequired(true)),
 
   async execute(interaction) {
     const user = interaction.options.getUser('user');
-    const reason = interaction.options.getString('reason') || 'Aucune raison fournie';
     const member = await interaction.guild.members.fetch(user.id).catch(() => null);
 
     if (!member) {
@@ -20,16 +18,18 @@ module.exports = {
     }
 
     if (!interaction.member.permissions.has('ManageMessages')) {
-      return interaction.reply({ content: '❌ Vous n\'avez pas la permission d\'avertir.', ephemeral: true });
+      return interaction.reply({ content: '❌ Vous n\'avez pas la permission de retirer les avertissements.', ephemeral: true });
     }
 
+    const warnings = db.getWarnings(user.id, interaction.guild.id);
+
     const embed = new EmbedBuilder()
-      .setTitle('⚠️ Confirmation - Avertissement')
+      .setTitle('🧹 Confirmation - Effacer les avertissements')
       .setColor(16753920)
-      .setDescription(`Voulez-vous avertir **${user.tag}** ?`)
+      .setDescription(`Voulez-vous effacer tous les avertissements de **${user.tag}** ?`)
       .addFields(
         { name: 'Utilisateur', value: `${user} (${user.id})`, inline: true },
-        { name: 'Raison', value: reason, inline: true },
+        { name: 'Avertissements actuels', value: `${warnings.length}`, inline: true },
         { name: 'Modérateur', value: interaction.user.tag, inline: true }
       )
       .setTimestamp()
@@ -37,44 +37,42 @@ module.exports = {
 
     const row = new ActionRowBuilder()
       .addComponents(
-        new ButtonBuilder().setCustomId(`warn_confirm_${user.id}`).setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId(`warn_cancel_${user.id}`).setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`clearwarns_confirm_${user.id}`).setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`clearwarns_cancel_${user.id}`).setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
       );
 
     await interaction.reply({ embeds: [embed], components: [row] });
   },
 
-  async handleConfirmation(interaction, client) {
-    const isCancel = interaction.customId.startsWith('warn_cancel_');
+  async handleConfirmation(interaction) {
+    const isCancel = interaction.customId.startsWith('clearwarns_cancel_');
     
     if (isCancel) {
       const cancelledEmbed = new EmbedBuilder()
         .setTitle('❌ Opération annulée')
         .setColor(16711680)
-        .setDescription('L\'avertissement n\'a pas été ajouté.')
+        .setDescription('Les avertissements n\'ont pas été effacés.')
         .setTimestamp()
         .setFooter({ text: 'Niotic - AntiRaid Bot' });
       return interaction.update({ embeds: [cancelledEmbed], components: [] });
     }
     
-    const userId = interaction.customId.replace('warn_confirm_', '');
-    const reason = interaction.fields?.getTextInputValue?.('warn_reason') || interaction.message.embeds[0]?.fields?.find(f => f.name === 'Raison')?.value || 'Aucune raison fournie';
+    const userId = interaction.customId.replace('clearwarns_confirm_', '');
 
-    const user = await client.users.fetch(userId).catch(() => null);
+    const user = await interaction.client.users.fetch(userId).catch(() => null);
     if (!user) {
       return interaction.update({ content: '❌ Utilisateur non trouvé.', embeds: [], components: [] });
     }
 
-    db.addWarning(interaction.guild.id, userId, interaction.user.id, reason);
+    db.clearWarnings(userId, interaction.guild.id);
 
     const successEmbed = new EmbedBuilder()
-      .setTitle('✅ Avertissement ajouté')
+      .setTitle('✅ Avertissements effacés')
       .setColor(3066993)
-      .setDescription(`**${user.tag}** a reçu un avertissement.`)
+      .setDescription(`Tous les avertissements de **${user.tag}** ont été effacés.`)
       .addFields(
         { name: 'Utilisateur', value: `${user} (${user.id})`, inline: true },
-        { name: 'Modérateur', value: interaction.user.tag, inline: true },
-        { name: 'Raison', value: reason, inline: false }
+        { name: 'Modérateur', value: interaction.user.tag, inline: true }
       )
       .setTimestamp()
       .setFooter({ text: 'Niotic - AntiRaid Bot' });

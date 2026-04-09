@@ -79,6 +79,18 @@ async function handleButtonInteraction(interaction, client) {
       ephemeral: true
     });
   }
+  
+  // Warn confirmation buttons
+  if (customId.startsWith('warn_confirm_') || customId.startsWith('warn_cancel_')) {
+    const { handleConfirmation } = require('../commands/moderation/warn');
+    await handleConfirmation(interaction, client);
+  }
+  
+  // Clearwarns confirmation buttons
+  if (customId.startsWith('clearwarns_confirm_') || customId.startsWith('clearwarns_cancel_')) {
+    const { handleConfirmation } = require('../commands/moderation/clearwarns');
+    await handleConfirmation(interaction);
+  }
 }
 
 /**

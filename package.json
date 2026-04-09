@@ -1,35 +1,23 @@
 {
-  "name": "discord-moderation-bot",
-  "version": "1.0.0",
-  "description": "Advanced Discord moderation bot with anti-raid, economy, music, tickets, and more",
-  "main": "index.js",
+  "name": "niotic",
+  "version": "3.0.0",
+  "description": "Discord Moderation Bot - Anti-Raid, Anti-Spam, Derank Protection",
+  "main": "src/bot.js",
+  "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "deploy": "node deploy-commands.js",
-    "lint": "eslint ."
+    "start": "node src/bot.js",
+    "dev": "node --watch src/bot.js",
+    "generate": "node src/commands/factory/generate.js",
+    "test": "node test.js"
   },
-  "keywords": [
-    "discord",
-    "moderation",
-    "bot",
-    "anti-raid",
-    "economy",
-    "music",
-    "tickets"
-  ],
-  "author": "WorksaseItsgood",
-  "license": "MIT",
   "dependencies": {
-    "@distube/soundcloud": "^2.0.4",
-    "@distube/spotify": "^2.0.2",
-    "better-sqlite3": "^12.8.0",
-    "canvas": "^3.1.0",
-    "discord-html-transcripts": "^3.2.0",
-    "discord.js": "^14.16.3",
-    "distube": "^5.2.3",
-    "dotenv": "^16.6.1"
+    "discord.js": "^14.15.0",
+    "better-sqlite3": "^9.4.0",
+    "dotenv": "^16.4.0"
   },
-  "devDependencies": {
-    "eslint": "^8.57.0"
-  }
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Work",
+  "license": "MIT"
 }

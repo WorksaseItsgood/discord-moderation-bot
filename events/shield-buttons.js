@@ -52,6 +52,11 @@ module.exports = {
     if (customId.startsWith('slowmode_')) {
       await handleSlowmodeButton(interaction, client);
     }
+
+    // Raidmode buttons
+    if (customId.startsWith('raidmode_')) {
+      await handleRaidmodeButton(interaction, client);
+    }
   }
 };
 
@@ -431,5 +436,125 @@ async function handleShieldButton(interaction, client) {
         );
       await interaction.reply({ embeds: [statusEmbed], ephemeral: true });
       break;
+  }
+}
+
+// ========== RAIDMODE ==========
+async function handleRaidmodeButton(interaction, client) {
+  const guild = interaction.guild;
+  const guildId = guild.id;
+  const action = interaction.customId.split('_')[1];
+
+  if (!interaction.member.permissions.has('Administrator')) {
+    await interaction.reply({ content: '❌ Permission requise: Administrateur.', ephemeral: true });
+    return;
+  }
+
+  switch (action) {
+    case 'run': {
+      const raidModeState = client.raidMode?.get(guildId);
+
+      if (raidModeState?.active) {
+        // Disable raid mode
+        client.raidMode.set(guildId, { active: false });
+        await interaction.update({
+          content: '🟢 **Raid Mode désactivé.** Les salons ont été déverrouillés.',
+          embeds: [],
+          components: []
+        });
+
+        // Restore channel permissions
+        if (client.lockedChannels) {
+          const locked = client.lockedChannels.get(guildId);
+          if (locked) {
+            for (const [channelId, perms] of Object.entries(locked)) {
+              const channel = guild.channels.cache.get(channelId);
+              if (channel) {
+                try {
+                  await channel.permissionOverwrites.edit(guild.roles.everyone, {
+                    SendMessages: perms.sendMessages ? null : false,
+                    Connect: perms.connect ? null : false
+                  });
+                } catch (e) {}
+              }
+            }
+            client.lockedChannels.delete(guildId);
+          }
+        }
+      } else {
+        // Enable raid mode
+        client.raidMode.set(guildId, {
+          active: true,
+          type: 'manual',
+          timestamp: Date.now(),
+          triggeredBy: interaction.user.tag
+        });
+
+        // Store original perms and lock all channels
+        if (!client.lockedChannels) client.lockedChannels = new Map();
+        const channels = guild.channels.cache.filter(ch =>
+          ch.type === 0 || ch.type === 2 || ch.type === 15
+        );
+
+        for (const [channelId, channel] of channels) {
+          try {
+            const originalPerms = channel.permissionOverwrites.cache.get(guild.roles.everyone.id);
+            client.lockedChannels.set(channelId, {
+              sendMessages: originalPerms?.allow.has('SendMessages') ?? true,
+              connect: originalPerms?.allow.has('Connect') ?? true
+            });
+
+            await channel.permissionOverwrites.edit(guild.roles.everyone, {
+              SendMessages: false,
+              AddReactions: false,
+              Connect: false,
+              Speak: false
+            }, 'Raid mode activé');
+          } catch (e) {}
+        }
+
+        await interaction.update({
+          content: '🔒 **Raid Mode activé!** Tous les salons ont été verrouillés.',
+          embeds: [],
+          components: []
+        });
+      }
+      break;
+    }
+
+    case 'info': {
+      const raidModeState = client.raidMode?.get(guildId);
+      const isActive = raidModeState?.active;
+      const history = client.raidHistory?.get(guildId) || [];
+
+      const infoEmbed = new EmbedBuilder()
+        .setTitle('🛡️ RaidMode Info')
+        .setColor(isActive ? 0xff0000 : 0x00ff00)
+        .addFields(
+          { name: 'Status', value: isActive ? '🔒 ACTIF' : '🟢 Inactif', inline: true },
+          { name: 'Type', value: raidModeState?.type || 'Aucun', inline: true },
+          { name: 'Déclencheur', value: raidModeState?.triggeredBy || '-', inline: true },
+          { name: 'Historique (10 dernières)', value: history.length === 0 ? 'Aucun raid détecté.' : history.slice(0, 10).map((r, i) => `${i + 1}. ${r.type} - ${new Date(r.timestamp).toLocaleString()}`).join('\n') || 'Aucun raid détecté.', inline: false }
+        );
+
+      await interaction.reply({ embeds: [infoEmbed], ephemeral: true });
+      break;
+    }
+
+    case 'help': {
+      const helpEmbed = new EmbedBuilder()
+        .setTitle('❓ Aide RaidMode')
+        .setColor(0x5865F2)
+        .setDescription('Commande `/raidmode` - Active le mode raid')
+        .addFields(
+          { name: '▶️ Exécuter', value: 'Active ou désactive le raid mode (verrouille tous les salons).', inline: false },
+          { name: 'ℹ️ Info', value: 'Affiche le statut actuel et l\'historique des raids.', inline: false },
+          { name: '❓ Aide', value: 'Affiche ce message d\'aide.', inline: false }
+        )
+        .setFooter({ text: 'Niotic Bot - Anti-Raid System' });
+
+      await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
+      break;
+    }
   }
 }
