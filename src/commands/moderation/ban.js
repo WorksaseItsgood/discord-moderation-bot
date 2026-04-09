@@ -1,6 +1,3 @@
-/**
- * /ban - Ban a user from the server
- */
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 
 export default {
@@ -9,11 +6,10 @@ export default {
     .setNameLocalizations({ fr: 'ban', 'en-US': 'ban' })
     .setDescription('Ban a user from the server')
     .setDescriptionLocalizations({ fr: 'Bannir un utilisateur du serveur', 'en-US': 'Ban a user from the server' })
-    .addUserOption(opt => opt.setName('user').setNameLocalizations({ fr: 'utilisateur' }).setDescription('User to ban').setDescriptionLocalizations({ fr: 'Utilisateur à bannir' }).setRequired(true))
-    .addStringOption(opt => opt.setName('reason').setNameLocalizations({ fr: 'raison' }).setDescription('Ban reason').setDescriptionLocalizations({ fr: 'Raison du ban' }).setRequired(false))
-    .addIntegerOption(opt => opt.setName('delete-days').setNameLocalizations({ fr: 'supprimer-jours' }).setDescription('Days of messages to delete').setDescriptionLocalizations({ fr: 'Jours de messages à supprimer' }).setRequired(false).setMinValue(0).setMaxValue(7)),
+    .addUserOption(o => o.setName('user').setNameLocalizations({ fr: 'utilisateur' }).setDescription('User to ban').setDescriptionLocalizations({ fr: 'Utilisateur à bannir' }).setRequired(true))
+    .addStringOption(o => o.setName('reason').setNameLocalizations({ fr: 'raison' }).setDescription('Ban reason').setDescriptionLocalizations({ fr: 'Raison du ban' }).setRequired(false))
+    .addIntegerOption(o => o.setName('delete-days').setNameLocalizations({ fr: 'supprimer-jours' }).setDescription('Days').setDescriptionLocalizations({ fr: 'Jours de messages' }).setRequired(false).setMinValue(0).setMaxValue(7)),
   name: 'ban',
-  description: 'Ban a user from the server',
   permissions: { user: [PermissionFlagsBits.BanMembers], bot: [PermissionFlagsBits.BanMembers] },
 
   async execute(interaction, client) {
@@ -22,20 +18,24 @@ export default {
     const deleteDays = interaction.options.getInteger('delete-days') || 0;
 
     if (!target) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Veuillez spécifier un utilisateur.')], ephemeral: true });
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xff4757).setTitle('❌ Erreur').setDescription('Veuillez spécifier un utilisateur.')], ephemeral: true });
     }
 
+    // Beautiful confirmation embed
     const confirmEmbed = new EmbedBuilder()
-      .setTitle('🔨 Confirmation de ban')
-      .setColor(0xff6600)
+      .setTitle('🔨 Confirmation de Ban')
+      .setColor(0xff6b81)
+      .setThumbnail(target.displayAvatarURL({ size: 256 }))
       .addFields(
-        { name: 'Utilisateur', value: `${target.tag} (${target.id})`, inline: true },
-        { name: 'Raison', value: reason, inline: true },
-        { name: 'Supprimer messages', value: `${deleteDays} jour(s)`, inline: true }
+        { name: '👤 Utilisateur', value: `${target.tag}\n\`${target.id}\``, inline: true },
+        { name: '🛡️ Modérateur', value: interaction.user.tag, inline: true },
+        { name: '📝 Raison', value: reason, inline: false },
+        { name: '🗑️ Supprimer messages', value: `${deleteDays} jour(s)`, inline: true }
       )
+      .setFooter({ text: `Niotic Moderation • ${new Date().toLocaleString('fr-FR')}` })
       .setTimestamp();
 
-    const confirmBtn = new ButtonBuilder().setCustomId(`ban_confirm_${target.id}`).setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger);
+    const confirmBtn = new ButtonBuilder().setCustomId(`ban_confirm_${target.id}`).setLabel('✅ Confirmer le Ban').setStyle(ButtonStyle.Danger);
     const cancelBtn = new ButtonBuilder().setCustomId('ban_cancel').setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary);
     const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
 
@@ -50,18 +50,32 @@ export default {
         } else {
           await interaction.guild.members.ban(target.id, { reason: `${reason} | Ban par ${interaction.user.tag}` });
         }
-        await btn.update({ embeds: [new EmbedBuilder().setColor(0x00ff00).setTitle('✅ Utilisateur banni').setDescription(`**${target.tag}** a été banni.\nRaison: ${reason}`).setTimestamp()], components: [] });
+        // Success embed
+        const successEmbed = new EmbedBuilder()
+          .setTitle('✅ Utilisateur banni')
+          .setColor(0x00ff99)
+          .setThumbnail(target.displayAvatarURL())
+          .addFields(
+            { name: '👤 Utilisateur', value: `${target.tag}`, inline: true },
+            { name: '🛡️ Modérateur', value: interaction.user.tag, inline: true },
+            { name: '📝 Raison', value: reason, inline: false }
+          )
+          .setFooter({ text: 'Niotic Moderation' })
+          .setTimestamp();
+        await btn.update({ embeds: [successEmbed], components: [] });
+
         const { addLog } = await import('../../database/db.js');
-        await addLog(interaction.guild.id, { action: 'ban', userId: target.id, moderatorId: interaction.user.id, reason, timestamp: Date.now() });
+        await addLog(interaction.guild.id, { action: 'ban', userId: target.id, moderatorId: interaction.user.id, reason });
       } catch (err) {
-        await btn.update({ embeds: [new EmbedBuilder().setColor(0xff0000).setTitle('❌ Échec du ban').setDescription(err.message).setTimestamp()], components: [] });
+        const errorEmbed = new EmbedBuilder().setColor(0xff4757).setTitle('❌ Échec du ban').setDescription(err.message).setFooter({ text: 'Niotic Moderation' }).setTimestamp();
+        await btn.update({ embeds: [errorEmbed], components: [] });
       }
       client.buttonHandlers.delete(`ban_confirm_${target.id}`);
     });
 
     client.buttonHandlers.set('ban_cancel', async (btn) => {
       if (btn.user.id !== interaction.user.id) return;
-      await btn.update({ embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Ban annulé.')], components: [] });
+      await btn.update({ embeds: [new EmbedBuilder().setColor(0x808080).setTitle('❌ Annulé').setDescription('Ban annulé par l\'utilisateur.').setFooter({ text: 'Niotic Moderation' }).setTimestamp()], components: [] });
       client.buttonHandlers.delete(`ban_confirm_${target.id}`);
       client.buttonHandlers.delete('ban_cancel');
     });

@@ -1,119 +1,123 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+/**
+ * Niotic - Discord Moderation Bot
+ * Main entry point (ES Module)
+ */
 
+import 'dotenv/config';
+import { Client, GatewayIntentBits, Partials, Collection } from 'discord.js';
+import { readdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import db, { getGuildConfig } from './src/database/db.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Create client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildModeration,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildBans,
-    GatewayIntentBits.GuildWebhooks,
-    GatewayIntentBits.GuildEmojisAndStickers
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.DirectMessages,
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember, Partials.User]
+  partials: [Partials.Channel, Partials.Message, Partials.User],
 });
 
-// Client maps
-client.commands = new Map();
-client.cooldowns = new Map();
-client.raidConfig = new Map();
-client.shieldConfig = new Map();
-client.shieldLocked = new Map();
+// Collections
+client.commands = new Collection();
+client.buttonHandlers = new Map();
+client.selectMenuHandlers = new Map();
+client.modalHandlers = new Map();
+client.raidMode = new Map();
+client.derankTracker = new Map();
+client.violationScores = new Map();
+client.guildConfigs = new Map();
+client.joinTracker = new Map();
+client.antiSpam = new Map();
+client.logger = {
+  info: (...args) => console.log('[INFO]', ...args),
+  warn: (...args) => console.warn('[WARN]', ...args),
+  error: (...args) => console.error('[ERROR]', ...args),
+};
 
-// Load systems
-const systems = {};
-for (const file of fs.readdirSync('./systems').filter(f => f.endsWith('.js'))) {
-  try {
-    systems[file.replace('.js', '')] = require(`./systems/${file}`);
-  } catch (e) { console.log(`[System] Error: ${e.message}`); }
-}
-client.modules = systems;
-
-// Load commands (only existing folders)
-const commandFolders = ['moderation', 'utility'];
-for (const folder of commandFolders) {
-  const folderPath = `./commands/${folder}`;
-  if (!fs.existsSync(folderPath)) continue;
-  for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith('.js'))) {
+// Load commands
+async function loadCommands() {
+  const folders = ['moderation', 'config', 'utility', 'info', 'protection', 'automation', 'stats'];
+  let count = 0;
+  for (const folder of folders) {
     try {
-      const cmd = require(`${folderPath}/${file}`);
-      client.commands.set(cmd.name || cmd.data?.name, cmd);
-    } catch (e) { console.log(`[Command] Error: ${file} - ${e.message}`); }
+      const path = join(__dirname, 'src', 'commands', folder);
+      const files = readdirSync(path).filter(f => f.endsWith('.js'));
+      for (const file of files) {
+        try {
+          const cmd = await import(`./src/commands/${folder}/${file}`);
+          if (cmd.default?.name) {
+            client.commands.set(cmd.default.name, cmd.default);
+            count++;
+          }
+        } catch (e) {
+          console.error(`[Load Error] ${folder}/${file}: ${e.message}`);
+        }
+      }
+    } catch {}
   }
+  console.log(`[Commands] Loaded ${count} commands`);
+  return count;
 }
-
-// Load shield command
-try {
-  const shield = require('./commands/shield.js');
-  client.commands.set('shield', shield);
-} catch (e) { console.log(`[Command] Error: shield - ${e.message}`); }
 
 // Load events
-for (const file of fs.readdirSync('./events').filter(f => f.endsWith('.js'))) {
-  try {
-    const event = require(`./events/${file}`);
-    if (event.once) {
-      client.once(event.name, (...args) => event.execute(...args, client));
-    } else {
-      client.on(event.name, (...args) => event.execute(...args, client));
+async function loadEvents() {
+  const files = readdirSync(join(__dirname, 'src', 'events')).filter(f => f.endsWith('.js'));
+  for (const file of files) {
+    try {
+      const event = await import(`./src/events/${file}`);
+      if (event.default?.name && event.default?.execute) {
+        if (event.default.once) {
+          client.once(event.default.name, (...args) => event.default.execute(...args, client));
+        } else {
+          client.on(event.default.name, (...args) => event.default.execute(...args, client));
+        }
+        console.log(`[Event] ${event.default.name}`);
+      }
+    } catch (e) {
+      console.error(`[Event Error] ${file}: ${e.message}`);
     }
-  } catch (e) { console.log(`[Event] Error: ${file} - ${e.message}`); }
+  }
 }
 
-// Init systems
-if (systems.ultraShield) systems.ultraShield(client);
-if (systems.ultraAntiRaid) systems.ultraAntiRaid(client);
-if (systems.logger) try { systems.logger(client); } catch {}
-if (systems.database) try { systems.database(client); } catch {}
+// Ready
+client.once('ready', async (c) => {
+  console.log(`✅ Logged in as ${c.user.tag}`);
+  console.log(`📊 Serving ${c.guilds.cache.size} servers`);
+  c.user.setActivity('/help | Niotic Moderation', { type: 3 });
 
-// Login
-client.login(process.env.DISCORD_TOKEN);
-
-client.on('ready', async () => {
-  console.log(`[Bot] Logged in as ${client.user.tag} | ${client.commands.size} commands`);
-  
-  // Register slash commands
-  try {
-    const { REST } = require('@discordjs/rest');
-    const { Routes } = require('discord-api-types/v10');
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    const cmds = [];
-    client.commands.forEach((cmd) => { if (cmd.data) cmds.push(cmd.data.toJSON()); });
-    await rest.put(Routes.applicationCommands(client.user.id), { body: cmds });
-    console.log(`[Bot] Registered ${cmds.length} slash commands`);
-  } catch (e) { console.log(`[Bot] Command registration error: ${e.message}`); }
-});
-
-// Command handler
-client.on('interactionCreate', async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    const cmd = client.commands.get(interaction.commandName);
-    if (!cmd) return;
-    
-    const key = `${interaction.user.id}-${cmd.name}`;
-    if (client.cooldowns.has(key)) {
-      const last = client.cooldowns.get(key);
-      if (Date.now() - last < (cmd.cooldown || 3000)) {
-        return interaction.reply({ content: '⏳ Attends...', ephemeral: true });
-      }
-    }
-    client.cooldowns.set(key, Date.now());
-    
+  // Pre-load guild configs
+  for (const guild of c.guilds.cache.values()) {
     try {
-      await cmd.execute(interaction, client);
-    } catch (e) {
-      console.log(`[Command] Error: ${e.message}`);
-      interaction.reply({ content: '❌ Erreur: ' + e.message, ephemeral: true }).catch(() => {});
-    }
+      const config = getGuildConfig(guild.id);
+      c.guildConfigs.set(guild.id, config);
+    } catch {}
   }
 });
 
-process.on('unhandledRejection', (e) => console.log('[Error]', e.message));
-process.on('uncaughtException', (e) => console.log('[Error]', e.message));
+// Start
+async function start() {
+  await loadCommands();
+  await loadEvents();
 
-console.log('[Bot] Starting...');
+  const token = process.env.DISCORD_TOKEN;
+  if (!token) {
+    console.error('❌ DISCORD_TOKEN not set!');
+    process.exit(1);
+  }
+
+  client.login(token).catch(err => {
+    console.error('❌ Login failed:', err.message);
+    process.exit(1);
+  });
+}
+
+start();
