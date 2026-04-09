@@ -81,7 +81,7 @@ export default {
     } catch (err) {
       if (err.code === 10013) {
         return interaction.reply({
-          embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Utilisateur introuvable.')->setTimestamp()],
+          embeds: [new EmbedBuilder().setColor(0xff0000).setDescription('❌ Utilisateur introuvable.').setTimestamp()],
           ephemeral: true,
         });
       }

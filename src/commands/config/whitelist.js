@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import { getWhitelist } from '../../database/db.js';
 
 export default {
@@ -7,7 +7,6 @@ export default {
     .setNameLocalizations({ fr: 'whitelist', 'en-US': 'whitelist' })
     .setDescription('Afficher la liste blanche')
     .setDescriptionLocalizations({ fr: 'Afficher la liste blanche', 'en-US': 'Show the whitelist' })
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDMPermission(false),
   name: 'whitelist',
   permissions: { user: [PermissionFlagsBits.Administrator], bot: [] },
